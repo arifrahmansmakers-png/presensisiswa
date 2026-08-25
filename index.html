@@ -4,15 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Presensi Wajah Otomatis SMAN 1 Kersana</title>
+    <!-- Menggunakan CDN Face-API yang stabil -->
     <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@latest/dist/face-api.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); min-height: 100vh; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .container { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); padding: 35px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); text-align: center; max-width: 600px; width: 100%; }
         h2 { color: #222; margin-bottom: 5px; font-weight: 700; }
         .subtitle { color: #666; font-size: 14px; margin-bottom: 20px; }
-        .video-box { position: relative; display: inline-block; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.15); background: #000; }
-        video { display: block; width: 100%; max-width: 500px; height: auto; }
-        #status { font-size: 18px; font-weight: bold; margin-top: 20px; padding: 12px; border-radius: 8px; background: #e8f5e9; color: #2e7d32; transition: all 0.3s; }
+        .video-box { position: relative; display: inline-block; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.15); background: #000; width: 100%; max-width: 500px; height: 375px; }
+        video { display: block; width: 100%; height: 100%; object-fit: cover; }
+        #status { font-size: 16px; font-weight: bold; margin-top: 20px; padding: 12px; border-radius: 8px; background: #e8f5e9; color: #2e7d32; transition: all 0.3s; }
         .link-nav { margin-top: 15px; font-size: 14px; }
         .link-nav a { color: #11998e; text-decoration: none; font-weight: bold; }
     </style>
@@ -27,7 +28,7 @@
         <video id="video" autoplay muted playsinline></video>
     </div>
 
-    <div id="status">Memuat Model AI & Database Wajah...</div>
+    <div id="status">Meminta izin kamera...</div>
     
     <div class="link-nav">
         <a href="register.html">➡️ Buka Halaman Pendaftaran Siswa</a>
@@ -35,15 +36,21 @@
 </div>
 
 <script>
-    // PASTI KAN URL GOOGLE APPS SCRIPT ANDA DITEMPEL DI SINI
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzB_jSNRzQmAWMRWEsG64QqLvss7uUTE9ka1JdVEa_3mbgc0UC9nGt482w5PrdxYH6lQw/exec"; 
-    
+    // URL Web App Google Apps Script Anda
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbygN4a-7oZ5gV39Wf0w5Zz5uX9a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t/exec"; // Ganti dengan URL /exec Anda yang benar
+
     const video = document.getElementById('video');
     let faceMatcher = null;
     let isProcessing = false;
 
     async function initSystem() {
         try {
+            document.getElementById('status').innerText = "Menyalakan kamera perangkat...";
+            
+            // Nyalakan kamera terlebih dahulu agar browser langsung memunculkan popup izin
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+            video.srcObject = stream;
+
             document.getElementById('status').innerText = "Memuat model AI pendeteksi wajah...";
             await faceapi.nets.ssdMobilenetv1.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@latest/model/');
             await faceapi.nets.faceLandmarkNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@latest/model/');
@@ -56,7 +63,7 @@
             });
             const dataSiswa = await res.json();
 
-            if (dataSiswa.length === 0) {
+            if (!Array.isArray(dataSiswa) || dataSiswa.length === 0) {
                 document.getElementById('status').innerText = "⚠️ Belum ada data siswa terdaftar di database!";
                 return;
             }
@@ -67,13 +74,13 @@
             });
 
             faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.52);
-
             document.getElementById('status').innerText = "Kamera Standby. Silakan lewat di depan kamera.";
-            
-            const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
-            video.srcObject = stream;
+
         } catch (err) {
-            document.getElementById('status').innerText = "Gagal memuat kamera atau izin ditolak!";
+            console.error(err);
+            document.getElementById('status').style.background = "#f8d7da";
+            document.getElementById('status').style.color = "#721c24";
+            document.getElementById('status').innerText = "Gagal memuat kamera atau izin ditolak! Pastikan klik 'Allow'.";
         }
     }
 

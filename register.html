@@ -83,40 +83,38 @@
     }
 
     async function initCameraAndAI() {
-        if (typeof faceapi === 'undefined') {
-            setAlertStatus("❌ Gagal memuat library face-api.js dari CDN!", true);
-            return;
-        }
-
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
-            video.srcObject = stream;
-        } catch (err) {
-            console.error(err);
-            setAlertStatus("Gagal mengakses kamera! Periksa izin browser.", true);
-            return;
-        }
-
-        try {
-            setAlertStatus("Kamera aktif. Memuat model dari folder './models'...");
-            
-            // Ganti path relatif dengan path absolut milik repository Anda sendiri
-            const MODEL_URL = "https://arifrahmansmakers-png.github.io/presensisiswa/models";
-            
-            await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
-            await faceapi.nets.faceLandmarkNet.loadFromUri(MODEL_URL);
-            await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
-
-            isModelLoaded = true;
-            setAlertStatus("✅ Kamera & AI Siap. Silakan isi data lalu klik Daftar.", false);
-            document.getElementById('btnDaftar').innerText = "Daftarkan Wajah Sekarang";
-            document.getElementById('btnDaftar').disabled = false;
-
-        } catch (err) {
-            console.error(err);
-            setAlertStatus("⚠️ Gagal memuat model dari folder './models'. Pastikan nama folder dan file di GitHub benar.", true);
-        }
+    // 1. Pastikan library benar-benar siap
+    let lib = window.faceapi || faceapi;
+    if (typeof lib === 'undefined') {
+        setAlertStatus("❌ Gagal total: Library faceapi tidak terdeteksi sama sekali oleh browser!", true);
+        return;
     }
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+        const video = document.getElementById('video');
+        video.srcObject = stream;
+    } catch (err) {
+        console.error(err);
+        setAlertStatus("Gagal mengakses kamera! Periksa izin browser.", true);
+        return;
+    }
+
+    try {
+        setAlertStatus("Kamera aktif. Memuat model AI dari folder models...");
+        const MODEL_URL = "./models";
+        
+        // Gunakan variabel 'lib' yang sudah dipastikan aman dari undefined
+        await lib.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
+        await lib.nets.faceLandmarkNet.loadFromUri(MODEL_URL);
+        await lib.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+
+        setAlertStatus("✅ Model AI Berhasil Dimuat! Silakan daftarkan wajah.", false);
+    } catch (err) {
+        console.error("Detail Error Model:", err);
+        setAlertStatus("⚠️ Gagal memuat file model (.bin) dari folder models.", true);
+    }
+}
 
     async function mulaiPendaftaran() {
         const nisn = document.getElementById('nisn').value.trim();

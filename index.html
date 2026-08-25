@@ -35,27 +35,31 @@
 </div>
 
 <script>
-    const WEB_APP_URL = "URL_WEB_APP_ANDA_DISINI"; // Ganti dengan URL /exec Anda
+    const WEB_APP_URL = "URL_WEB_APP_ANDA_DISINI"; // Ganti dengan URL /exec Apps Script Anda
 
     const video = document.getElementById('video');
     let faceMatcher = null;
     let isProcessing = false;
 
     async function initSystem() {
+        // 1. Nyalakan Kamera Terlebih Dahulu
         try {
-            // 1. Nyalakan Kamera
             const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
             video.srcObject = stream;
-            document.getElementById('status.innerText = "Kamera aktif. Memuat model AI..."';
+        } catch (err) {
+            console.error(err);
+            setAlertStatus("Gagal mengakses kamera! Pastikan izin kamera di-allow.", true);
+            return;
+        }
 
-            // 2. Load Model AI
-            document.getElementById('status').innerText = "Memuat model AI pendeteksi wajah...";
+        // 2. Load Model AI & Tarik Database (Dipisah agar error kamera tidak tercampur dengan error AI/Spreadsheet)
+        try {
+            setAlertStatus("Kamera aktif. Memuat model AI pendeteksi wajah...");
             await faceapi.nets.ssdMobilenetv1.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@latest/model/');
             await faceapi.nets.faceLandmarkNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@latest/model/');
             await faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@latest/model/');
 
-            // 3. Tarik Database Wajah
-            document.getElementById('status').innerText = "Menarik database wajah dari Spreadsheet...";
+            setAlertStatus("Menarik database wajah dari Spreadsheet...");
             const res = await fetch(WEB_APP_URL, {
                 method: "POST",
                 body: JSON.stringify({ action: "getData" })
@@ -63,9 +67,7 @@
             const dataSiswa = await res.json();
 
             if (!Array.isArray(dataSiswa) || dataSiswa.length === 0) {
-                document.getElementById('status').style.background = "#fff3cd";
-                document.getElementById('status').style.color = "#856404";
-                document.getElementById('status').innerText = "⚠️ Model & Kamera siap, tapi belum ada data siswa di Spreadsheet!";
+                setAlertStatus("⚠️ Belum ada data siswa terdaftar di Spreadsheet!", false);
                 return;
             }
 
@@ -75,15 +77,23 @@
             });
 
             faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.52);
-            document.getElementById('status').style.background = "#e8f5e9";
-            document.getElementById('status').style.color = "#2e7d32";
-            document.getElementById('status').innerText = "✅ Sistem Standby. Silakan lewat di depan kamera.";
+            setAlertStatus("✅ Sistem Standby. Silakan lewat di depan kamera.", false);
 
         } catch (err) {
             console.error(err);
-            document.getElementById('status').style.background = "#f8d7da";
-            document.getElementById('status').style.color = "#721c24";
-            document.getElementById('status').innerText = "⚠️ Kendala koneksi/model AI. Pastikan URL Web App benar & internet lancar.";
+            setAlertStatus("⚠️ Kamera menyala, tetapi gagal memuat AI/Database. Cek URL Web App.", true);
+        }
+    }
+
+    function setAlertStatus(text, isError) {
+        const statusEl = document.getElementById('status');
+        statusEl.innerText = text;
+        if (isError) {
+            statusEl.style.background = "#f8d7da";
+            statusEl.style.color = "#721c24";
+        } else {
+            statusEl.style.background = "#e8f5e9";
+            statusEl.style.color = "#2e7d32";
         }
     }
 
@@ -100,9 +110,7 @@
                     isProcessing = true;
                     let nisn = match.label;
                     
-                    document.getElementById('status').style.background = "#fff3cd";
-                    document.getElementById('status').style.color = "#856404";
-                    document.getElementById('status').innerText = `🔍 Wajah dikenali (NISN: ${nisn}). Mengirim presensi...`;
+                    setAlertStatus(`🔍 Wajah dikenali (NISN: ${nisn}). Mengirim presensi...`, false);
 
                     try {
                         let response = await fetch(WEB_APP_URL, {
@@ -112,23 +120,17 @@
                         let result = await response.json();
 
                         if (result.status === "success") {
-                            document.getElementById('status').style.background = "#d4edda";
-                            document.getElementById('status').style.color = "#155724";
-                            document.getElementById('status').innerText = `✅ Hadir: ${result.nama} (Notifikasi Telegram Terkirim)`;
+                            setAlertStatus(`✅ Hadir: ${result.nama} (Notifikasi Telegram Terkirim)`, false);
                         } else {
-                            document.getElementById('status').style.background = "#f8d7da";
-                            document.getElementById('status').style.color = "#721c24";
-                            document.getElementById('status').innerText = `⚠️ ${result.message}`;
+                            setAlertStatus(`⚠️ ${result.message}`, true);
                         }
                     } catch (e) {
-                        document.getElementById('status').innerText = "❌ Gagal terhubung ke server Apps Script.";
+                        setAlertStatus("❌ Gagal terhubung ke server Apps Script.", true);
                     }
 
                     setTimeout(() => {
                         isProcessing = false;
-                        document.getElementById('status').style.background = "#e8f5e9";
-                        document.getElementById('status').style.color = "#2e7d32";
-                        document.getElementById('status').innerText = "✅ Sistem Standby. Silakan lewat di depan kamera.";
+                        setAlertStatus("✅ Sistem Standby. Silakan lewat di depan kamera.", false);
                     }, 6000);
                 }
             }

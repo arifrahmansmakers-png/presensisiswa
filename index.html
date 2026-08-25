@@ -35,7 +35,8 @@
 </div>
 
 <script>
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzB_jSNRzQmAWMRWEsG64QqLvss7uUTE9ka1JdVEa_3mbgc0UC9nGt482w5PrdxYH6lQw/exec"; // Ganti dengan URL /exec Apps Script Anda
+    // URL Google Apps Script Web App Anda
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzB_jSNRzQmAWMRWEsG64QqLvss7uUTE9ka1JdVEa_3mbgc0UC9nGt482w5PrdxYH6lQw/exec";
 
     const video = document.getElementById('video');
     let faceMatcher = null;
@@ -52,7 +53,7 @@
             return;
         }
 
-        // 2. Load Model AI & Tarik Database (Dipisah agar error kamera tidak tercampur dengan error AI/Spreadsheet)
+        // 2. Load Model AI & Tarik Database
         try {
             setAlertStatus("Kamera aktif. Memuat model AI pendeteksi wajah...");
             await faceapi.nets.ssdMobilenetv1.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@latest/model/');
@@ -81,7 +82,7 @@
 
         } catch (err) {
             console.error(err);
-            setAlertStatus("⚠️ Kamera menyala, tetapi gagal memuat AI/Database. Cek URL Web App.", true);
+            setAlertStatus("⚠️ Kamera menyala, tetapi gagal memuat AI/Database. Cek koneksi internet.", true);
         }
     }
 

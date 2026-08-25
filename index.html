@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Presensi Wajah Otomatis SMAN 1 Kersana</title>
-        <!-- CDN face-api.js versi asli yang cocok 100% dengan script Anda -->
-    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <!-- CDN jsDelivr stabil untuk @vladmandic/face-api -->
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); min-height: 100vh; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .container { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); padding: 35px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); text-align: center; max-width: 600px; width: 100%; }
@@ -56,7 +56,8 @@
     }
 
     async function initSystem() {
-        if (typeof faceapi === 'undefined') {
+        let lib = window.faceapi || faceapi;
+        if (typeof lib === 'undefined') {
             setAlertStatus("❌ Library faceapi belum terbaca!", true);
             return;
         }
@@ -72,13 +73,12 @@
 
         try {
             setAlertStatus("Kamera aktif. Memuat model AI dari folder './models'...");
-
-            // Ganti path relatif dengan path absolut milik repository Anda sendiri
-            const MODEL_URL = "https://arifrahmansmakers-png.github.io/presensisiswa/models";
+            const MODEL_URL = "./models";
             
-            await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
-            await faceapi.nets.faceLandmarkNet.loadFromUri(MODEL_URL);
-            await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+            // Menggunakan fungsi shortcut langsung dari @vladmandic/face-api
+            await lib.loadSsdMobilenetv1Model(MODEL_URL);
+            await lib.loadFaceLandmarkModel(MODEL_URL);
+            await lib.loadFaceRecognitionModel(MODEL_URL);
 
             setAlertStatus("Menarik database wajah dari Spreadsheet...");
             const res = await fetch(WEB_APP_URL, {
@@ -94,23 +94,24 @@
 
             let labeledDescriptors = dataSiswa.map(item => {
                 let floatArrays = item.descriptors.map(desc => new Float32Array(desc));
-                return new faceapi.LabeledFaceDescriptors(item.nisn.toString(), floatArrays);
+                return new lib.LabeledFaceDescriptors(item.nisn.toString(), floatArrays);
             });
 
-            faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.52);
+            faceMatcher = new lib.FaceMatcher(labeledDescriptors, 0.52);
             setAlertStatus("✅ Sistem Standby. Silakan lewat di depan kamera.", false);
 
         } catch (err) {
-            console.error("Detail Error:", err);
+            console.error("Detail Error Model:", err);
             setAlertStatus("⚠️ Gagal memuat model. Periksa folder ./models di GitHub.", true);
         }
     }
 
     video.addEventListener('play', () => {
+        let lib = window.faceapi || faceapi;
         setInterval(async () => {
-            if (isProcessing || !faceMatcher || typeof faceapi === 'undefined') return;
+            if (isProcessing || !faceMatcher || typeof lib === 'undefined') return;
 
-            const detection = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+            const detection = await lib.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
 
             if (detection) {
                 const match = faceMatcher.findBestMatch(detection.descriptor);

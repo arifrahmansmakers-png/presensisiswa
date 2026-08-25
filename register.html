@@ -101,7 +101,7 @@
             setAlertStatus("Kamera aktif. Memuat model dari folder './models'...");
             
             // Ganti path relatif dengan path absolut milik repository Anda sendiri
-            const MODEL_URL = "https://arifrahmansmakers-png.github.io/presensisiswa/models";
+            const MODEL_URL = "./models";
             
             await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
             await faceapi.nets.faceLandmarkNet.loadFromUri(MODEL_URL);

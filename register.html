@@ -99,10 +99,12 @@
         try {
             setAlertStatus("Kamera aktif. Memuat model dari folder './models'...");
             
-            // Menggunakan struktur standar faceapi.nets yang cocok dengan versi 0.22.2
-            await faceapi.nets.ssdMobilenetv1.loadFromUri('./models');
-            await faceapi.nets.faceLandmarkNet.loadFromUri('./models');
-            await faceapi.nets.faceRecognitionNet.loadFromUri('./models');
+            // Ganti path relatif dengan path absolut milik repository Anda sendiri
+            const MODEL_URL = "https://arifrahmansmakers-png.github.io/presensisiswa/models";
+            
+            await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
+            await faceapi.nets.faceLandmarkNet.loadFromUri(MODEL_URL);
+            await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
 
             isModelLoaded = true;
             setAlertStatus("✅ Kamera & AI Siap. Silakan isi data lalu klik Daftar.", false);

@@ -4,24 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pendaftaran Wajah Siswa - SMAN 1 Kersana</title>
-        <!-- CDN face-api.js versi asli yang cocok 100% dengan script Anda -->
-<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <!-- CDN jsDelivr stabil untuk @vladmandic/face-api -->
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); min-height: 100vh; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-        .container { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); padding: 30px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); text-align: center; max-width: 520px; width: 100%; }
-        h2 { color: #222; margin-bottom: 5px; font-weight: 700; }
-        .subtitle { color: #666; font-size: 14px; margin-bottom: 15px; }
-        .form-group { margin-bottom: 12px; text-align: left; }
-        label { display: block; font-weight: bold; font-size: 13px; color: #444; margin-bottom: 4px; }
-        input { width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
-        .help-box { background: #e3f2fd; border-left: 4px solid #1e88e5; padding: 10px; font-size: 12px; color: #0d47a1; text-align: left; border-radius: 4px; margin-top: 4px; line-height: 1.4; }
-        .video-box { position: relative; display: inline-block; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.15); background: #000; width: 100%; height: 200px; margin-bottom: 12px; margin-top: 10px; }
+        .container { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); padding: 30px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); max-width: 500px; width: 100%; }
+        h2 { color: #222; text-align: center; margin-bottom: 5px; font-weight: 700; }
+        .subtitle { color: #666; font-size: 13px; text-align: center; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: 600; margin-bottom: 5px; color: #333; font-size: 14px; }
+        input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
+        .video-box { position: relative; display: block; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.15); background: #000; width: 100%; height: 280px; margin-bottom: 15px; }
         video { display: block; width: 100%; height: 100%; object-fit: cover; }
-        button { background: #11998e; color: white; border: none; padding: 11px 20px; font-size: 15px; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%; transition: background 0.3s; }
-        button:hover { background: #0e7e75; }
-        button:disabled { background: #cccccc; cursor: not-allowed; }
-        #status { font-size: 13px; font-weight: bold; margin-top: 12px; padding: 10px; border-radius: 8px; background: #e8f5e9; color: #2e7d32; }
-        .link-nav { margin-top: 12px; font-size: 14px; }
+        button { width: 100%; background: #11998e; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.3s; }
+        button:hover { background: #0e7c73; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #status { font-size: 14px; font-weight: bold; margin-top: 15px; padding: 10px; border-radius: 8px; text-align: center; background: #e8f5e9; color: #2e7d32; }
+        .link-nav { text-align: center; margin-top: 15px; font-size: 14px; }
         .link-nav a { color: #11998e; text-decoration: none; font-weight: bold; }
     </style>
 </head>
@@ -30,34 +29,29 @@
 <div class="container">
     <h2>📝 Pendaftaran Wajah Siswa</h2>
     <div class="subtitle">SMAN 1 Kersana</div>
-    
+
     <div class="form-group">
-        <label for="nisn">NISN Siswa:</label>
+        <label>NISN Siswa:</label>
         <input type="text" id="nisn" placeholder="Contoh: 0081234567">
     </div>
 
     <div class="form-group">
-        <label for="nama">Nama Lengkap:</label>
+        <label>Nama Lengkap:</label>
         <input type="text" id="nama" placeholder="Contoh: Ahmad Dani">
     </div>
 
     <div class="form-group">
-        <label for="chatId">Telegram Chat ID (Untuk Notifikasi):</label>
+        <label>Telegram Chat ID (Opsional untuk Notifikasi):</label>
         <input type="text" id="chatId" placeholder="Contoh: 123456789">
-        <div class="help-box">
-            💡 <b>Cara Mendapatkan Chat ID Telegram:</b><br>
-            1. Buka Telegram, cari bot: <b>@userinfobot</b><br>
-            2. Ketik <code>/start</code> lalu salin angkanya ke kolom di atas.
-        </div>
     </div>
 
     <div class="video-box">
         <video id="video" autoplay muted playsinline></video>
     </div>
 
-    <button id="btnDaftar" onclick="mulaiPendaftaran()" disabled>Menyiapkan Sistem...</button>
-    <div id="status">Menyalakan kamera perangkat...</div>
-    
+    <button id="btnRegister" onclick="registerFace()" disabled>Menyiapkan Sistem...</button>
+    <div id="status">Memuat model AI dan kamera...</div>
+
     <div class="link-nav">
         <a href="index.html">⬅️ Kembali ke Halaman Presensi</a>
     </div>
@@ -67,7 +61,7 @@
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzB_jSNRzQmAWMRWEsG64QqLvss7uUTE9ka1JdVEa_3mbgc0UC9nGt482w5PrdxYH6lQw/exec";
 
     const video = document.getElementById('video');
-    let isModelLoaded = false;
+    const btnRegister = document.getElementById('btnRegister');
 
     function setAlertStatus(text, isError) {
         const statusEl = document.getElementById('status');
@@ -83,104 +77,97 @@
     }
 
     async function initCameraAndAI() {
-    // 1. Pastikan library benar-benar siap
-    let lib = window.faceapi || faceapi;
-    if (typeof lib === 'undefined') {
-        setAlertStatus("❌ Gagal total: Library faceapi tidak terdeteksi sama sekali oleh browser!", true);
-        return;
+        let lib = window.faceapi || faceapi;
+        if (typeof lib === 'undefined') {
+            setAlertStatus("❌ Library faceapi tidak terdeteksi!", true);
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+            video.srcObject = stream;
+        } catch (err) {
+            console.error(err);
+            setAlertStatus("Gagal mengakses kamera! Periksa izin browser.", true);
+            return;
+        }
+
+        try {
+            setAlertStatus("Kamera aktif. Memuat model AI dari folder models...");
+            const MODEL_URL = "./models";
+            
+            // Menggunakan fungsi shortcut langsung dari @vladmandic/face-api
+            await lib.loadSsdMobilenetv1Model(MODEL_URL);
+            await lib.loadFaceLandmarkModel(MODEL_URL);
+            await lib.loadFaceRecognitionModel(MODEL_URL);
+
+            setAlertStatus("✅ Siap Mendaftarkan Wajah", false);
+            btnRegister.disabled = false;
+            btnRegister.innerText = "Daftarkan Wajah Sekarang";
+        } catch (err) {
+            console.error("Detail Error Model:", err);
+            setAlertStatus("⚠️ Gagal memuat file model (.bin) dari folder models.", true);
+        }
     }
 
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
-        const video = document.getElementById('video');
-        video.srcObject = stream;
-    } catch (err) {
-        console.error(err);
-        setAlertStatus("Gagal mengakses kamera! Periksa izin browser.", true);
-        return;
-    }
-
-    try {
-        setAlertStatus("Kamera aktif. Memuat model AI dari folder models...");
-        const MODEL_URL = "./models";
-        
-        // Gunakan variabel 'lib' yang sudah dipastikan aman dari undefined
-        await lib.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
-        await lib.nets.faceLandmarkNet.loadFromUri(MODEL_URL);
-        await lib.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
-
-        setAlertStatus("✅ Model AI Berhasil Dimuat! Silakan daftarkan wajah.", false);
-    } catch (err) {
-        console.error("Detail Error Model:", err);
-        setAlertStatus("⚠️ Gagal memuat file model (.bin) dari folder models.", true);
-    }
-}
-
-    async function mulaiPendaftaran() {
+    async function registerFace() {
+        let lib = window.faceapi || faceapi;
         const nisn = document.getElementById('nisn').value.trim();
         const nama = document.getElementById('nama').value.trim();
         const chatId = document.getElementById('chatId').value.trim();
 
         if (!nisn || !nama) {
-            alert("Harap isi NISN dan Nama lengkap terlebih dahulu!");
+            alert("Harap isi NISN dan Nama Lengkap terlebih dahulu!");
             return;
         }
 
-        if (!isModelLoaded) {
-            alert("Model AI masih memuat, mohon tunggu sebentar...");
-            return;
-        }
+        btnRegister.disabled = true;
+        setAlertStatus("Mendeteksi wajah di depan kamera...", false);
 
-        const btn = document.getElementById('btnDaftar');
-        btn.disabled = true;
-        setAlertStatus("Mendeteksi wajah, mohon hadap lurus ke kamera...", false);
+        const detection = await lib.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
 
-        let descriptors = [];
-        for (let i = 0; i < 3; i++) {
-            const detection = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
-            if (detection) {
-                descriptors.push(Array.from(detection.descriptor));
-            }
-            await new Promise(resolve => setTimeout(resolve, 500));
-        }
-
-        if (descriptors.length === 0) {
-            alert("Wajah tidak terdeteksi! Pastikan posisi wajah pas dan pencahayaan cukup.");
-            btn.disabled = false;
-            setAlertStatus("Pendaftaran gagal. Coba lagi.", true);
+        if (!detection) {
+            alert("Wajah tidak terdeteksi dengan jelas! Posisikan wajah di tengah kamera.");
+            btnRegister.disabled = false;
+            setAlertStatus("✅ Siap Mendaftarkan Wajah", false);
             return;
         }
 
         setAlertStatus("Mengirim data wajah ke Spreadsheet...", false);
 
+        // Ubah Float32Array descriptor menjadi Array biasa agar bisa di-JSON-kan
+        const descriptorArray = Array.from(detection.descriptor);
+
         try {
-            const response = await fetch(WEB_APP_URL, {
+            let response = await fetch(WEB_APP_URL, {
                 method: "POST",
                 body: JSON.stringify({
                     action: "register",
                     nisn: nisn,
                     nama: nama,
                     chatId: chatId,
-                    descriptors: descriptors
+                    descriptors: [descriptorArray]
                 })
             });
-            const result = await response.json();
+            let result = await response.json();
 
             if (result.status === "success") {
-                setAlertStatus(`✅ Berhasil! Siswa ${nama} terdaftar.`, false);
-                document.getElementById('nisn').value = "";
-                document.getElementById('nama').value = "";
-                document.getElementById('chatId').value = "";
+                alert("Sukses! Pendaftaran wajah siswa berhasil.");
+                document.getElementById('nisn').value = '';
+                document.getElementById('nama').value = '';
+                document.getElementById('chatId').value = '';
+                setAlertStatus("✅ Pendaftaran Berhasil!", false);
             } else {
-                setAlertStatus(`⚠️ Gagal: ${result.message}`, true);
+                alert("Gagal: " + result.message);
+                setAlertStatus("⚠️ Gagal menyimpan ke Spreadsheet", true);
             }
         } catch (e) {
             console.error(e);
-            alert("Terjadi kesalahan jaringan saat mengirim data.");
-            setAlertStatus("Gagal terhubung ke server.", true);
-        } finally {
-            btn.disabled = false;
+            alert("Terjadi kesalahan koneksi ke server Apps Script.");
+            setAlertStatus("❌ Gagal terhubung ke server", true);
         }
+
+        btnRegister.disabled = false;
     }
 
     window.addEventListener('DOMContentLoaded', initCameraAndAI);

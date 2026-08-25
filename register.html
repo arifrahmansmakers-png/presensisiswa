@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pendaftaran Wajah Siswa - SMAN 1 Kersana</title>
-    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.8/dist/face-api.min.js"></script>
+    <!-- Menggunakan CDN versi standar justadudewhohacks yang strukturnya cocok dengan .nets.loadFromUri -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/face-api.js/0.22.2/face-api.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); min-height: 100vh; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .container { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); padding: 30px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); text-align: center; max-width: 520px; width: 100%; }
@@ -82,10 +83,8 @@
     }
 
     async function initCameraAndAI() {
-        // Cek apakah library faceapi benar-benar sudah termuat
         if (typeof faceapi === 'undefined') {
-            setAlertStatus("❌ Gagal: File 'face-api.min.js' tidak ditemukan atau gagal dimuat!", true);
-            console.error("Library faceapi is undefined. Pastikan file face-api.min.js ada di root folder GitHub.");
+            setAlertStatus("❌ Gagal memuat library face-api.js dari CDN!", true);
             return;
         }
 
@@ -101,6 +100,7 @@
         try {
             setAlertStatus("Kamera aktif. Memuat model dari folder './models'...");
             
+            // Menggunakan struktur standar faceapi.nets yang cocok dengan versi 0.22.2
             await faceapi.nets.ssdMobilenetv1.loadFromUri('./models');
             await faceapi.nets.faceLandmarkNet.loadFromUri('./models');
             await faceapi.nets.faceRecognitionNet.loadFromUri('./models');
@@ -112,7 +112,7 @@
 
         } catch (err) {
             console.error(err);
-            setAlertStatus("⚠️ Gagal memuat model dari folder './models'. Periksa isi folder models di GitHub.", true);
+            setAlertStatus("⚠️ Gagal memuat model dari folder './models'. Pastikan nama folder dan file di GitHub benar.", true);
         }
     }
 
@@ -183,7 +183,6 @@
         }
     }
 
-    // Jalankan inisialisasi setelah halaman selesai dimuat sepenuhnya
     window.addEventListener('DOMContentLoaded', initCameraAndAI);
 </script>
 </body>

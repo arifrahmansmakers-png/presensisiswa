@@ -14,12 +14,14 @@
         .form-group { margin-bottom: 15px; }
         label { display: block; font-weight: 600; margin-bottom: 5px; color: #333; font-size: 14px; }
         input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
-        .video-box { position: relative; display: block; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.15); background: #000; width: 100%; height: 280px; margin-bottom: 15px; }
+        .telegram-guide { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 10px; border-radius: 6px; font-size: 12px; color: #0d47a1; margin-top: 5px; }
+        .telegram-guide a { color: #1565c0; font-weight: bold; text-decoration: none; }
+        .video-box { position: relative; display: block; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.15); background: #000; width: 100%; height: 260px; margin-bottom: 15px; }
         video { display: block; width: 100%; height: 100%; object-fit: cover; }
         button { width: 100%; background: #11998e; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.3s; }
         button:hover { background: #0e7c73; }
         button:disabled { background: #ccc; cursor: not-allowed; }
-        #status { font-size: 14px; font-weight: bold; margin-top: 15px; padding: 10px; border-radius: 8px; text-align: center; background: #e8f5e9; color: #2e7d32; }
+        #status { font-size: 13px; font-weight: bold; margin-top: 15px; padding: 10px; border-radius: 8px; text-align: center; background: #e8f5e9; color: #2e7d32; }
         .link-nav { text-align: center; margin-top: 15px; font-size: 14px; }
         .link-nav a { color: #11998e; text-decoration: none; font-weight: bold; }
     </style>
@@ -41,8 +43,15 @@
     </div>
 
     <div class="form-group">
-        <label>Telegram Chat ID (Opsional untuk Notifikasi):</label>
+        <label>Telegram Chat ID (Untuk Notifikasi):</label>
         <input type="text" id="chatId" placeholder="Contoh: 123456789">
+        <!-- Panduan Tata Cara Chat ID -->
+        <div class="telegram-guide">
+            💡 <b>Cara Mendapatkan Chat ID Telegram:</b><br>
+            1. Buka Telegram, cari bot: <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a><br>
+            2. Klik <b>Start</b> atau kirim pesan <code>/start</code>.<br>
+            3. Salin angka pada bagian <b>Id</b> yang diberikan bot, lalu paste ke kolom di atas.
+        </div>
     </div>
 
     <div class="video-box">
@@ -96,7 +105,6 @@
             setAlertStatus("Kamera aktif. Memuat model AI dari folder models...");
             const MODEL_URL = "./models";
             
-            // Menggunakan fungsi shortcut langsung dari @vladmandic/face-api
             await lib.loadSsdMobilenetv1Model(MODEL_URL);
             await lib.loadFaceLandmarkModel(MODEL_URL);
             await lib.loadFaceRecognitionModel(MODEL_URL);
@@ -134,8 +142,6 @@
         }
 
         setAlertStatus("Mengirim data wajah ke Spreadsheet...", false);
-
-        // Ubah Float32Array descriptor menjadi Array biasa agar bisa di-JSON-kan
         const descriptorArray = Array.from(detection.descriptor);
 
         try {

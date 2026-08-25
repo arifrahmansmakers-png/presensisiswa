@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Presensi Wajah Otomatis SMAN 1 Kersana</title>
-    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.8/dist/face-api.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/face-api.js/0.22.2/face-api.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); min-height: 100vh; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .container { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); padding: 35px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); text-align: center; max-width: 600px; width: 100%; }
@@ -55,14 +55,11 @@
     }
 
     async function initSystem() {
-        // Cek apakah library face-api.min.js berhasil termuat
         if (typeof faceapi === 'undefined') {
-            setAlertStatus("❌ Gagal: File 'face-api.min.js' tidak ditemukan di root folder GitHub!", true);
-            console.error("Library faceapi is undefined.");
+            setAlertStatus("❌ Gagal memuat library face-api.js dari CDN!", true);
             return;
         }
 
-        // 1. Nyalakan Kamera
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
             video.srcObject = stream;
@@ -72,7 +69,6 @@
             return;
         }
 
-        // 2. Load Model AI dari Folder Lokal './models' & Tarik Database
         try {
             setAlertStatus("Kamera aktif. Memuat model AI dari folder lokal './models'...");
             
@@ -102,7 +98,7 @@
 
         } catch (err) {
             console.error(err);
-            setAlertStatus("⚠️ Gagal memuat model dari folder './models'. Periksa kelengkapan file di GitHub.", true);
+            setAlertStatus("⚠️ Gagal memuat model dari folder './models'. Periksa kelengkapan file.", true);
         }
     }
 
@@ -146,7 +142,6 @@
         }, 1500);
     });
 
-    // Jalankan sistem setelah halaman siap
     window.addEventListener('DOMContentLoaded', initSystem);
 </script>
 </body>

@@ -117,9 +117,22 @@
         }
     }
 
-    // Fungsi otomatis mengambil beberapa sudut (multi-angle) secara berurutan
-    async function startMultiAngleRegistration() {
+    // Fungsi pembantu untuk mendeteksi wajah dengan retry (mencegah stuck)
+    async function getFaceDescriptorWithRetry(angleName, maxRetries = 25) {
         let lib = window.faceapi || faceapi;
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            const detection = await lib.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+            if (detection) {
+                return detection.descriptor;
+            }
+            setAlertStatus(`📸 Mencari wajah: ${angleName} (Coba ${attempt + 1})...`, false);
+            await new Promise(resolve => setTimeout(resolve, 400));
+        }
+        return null;
+    }
+
+    // Fungsi otomatis mengambil beberapa sudut (multi-angle) secara berurutan dengan jeda
+    async function startMultiAngleRegistration() {
         const nisn = document.getElementById('nisn').value.trim();
         const nama = document.getElementById('nama').value.trim();
         const chatId = document.getElementById('chatId').value.trim();
@@ -134,20 +147,22 @@
 
         // Panduan pengambilan 3 sudut berbeda
         const angles = [
-            { name: "1. Menghadap Lurus ke Depan", delay: 2000 },
-            { name: "2. Sedikit Menoleh ke Kiri", delay: 2000 },
-            { name: "3. Sedikit Menoleh ke Kanan", delay: 2000 }
+            { name: "1. Menghadap Lurus ke Depan" },
+            { name: "2. Sedikit Menoleh ke Kiri" },
+            { name: "3. Sedikit Menoleh ke Kanan" }
         ];
 
         for (let i = 0; i < angles.length; i++) {
-            setAlertStatus(`📸 Posisi: ${angles[i].name}... (Bersiap)`, false);
-            await new Promise(resolve => setTimeout(resolve, 1500)); // Jeda persiapan siswa
+            // Jeda persiapan sebelum masuk ke posisi baru (memberikan waktu bagi siswa bersiap)
+            setAlertStatus(`⏳ Bersiap untuk posisi: ${angles[i].name}...`, false);
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Jeda 2 detik antar sudut
 
-            setAlertStatus(`📸 Mengambil sampel: ${angles[i].name}...`, false);
+            setAlertStatus(`📸 Ambil posisi: ${angles[i].name}...`, false);
             
-            const detection = await lib.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+            // Proses pengambilan sampel dengan retry
+            const descriptor = await getFaceDescriptorWithRetry(angles[i].name);
 
-            if (!detection) {
+            if (!descriptor) {
                 alert(`Wajah tidak terdeteksi pada posisi "${angles[i].name}"! Pastikan wajah terlihat jelas di kamera. Pendaftaran dibatalkan.`);
                 btnRegister.disabled = false;
                 setAlertStatus("✅ Siap Mendaftarkan Wajah", false);
@@ -155,9 +170,11 @@
             }
 
             // Simpan descriptor dari sudut ini
-            collectedDescriptors.push(Array.from(detection.descriptor));
-            setAlertStatus(`✔️ Sampel ${i + 1} berhasil diambil!`, false);
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            collectedDescriptors.push(Array.from(descriptor));
+            setAlertStatus(`✔️ Sampel ${i + 1} (${angles[i].name}) berhasil diambil!`, false);
+            
+            // Jeda singkat setelah sampel berhasil diambil sebelum lanjut ke tahap berikutnya
+            await new Promise(resolve => setTimeout(resolve, 1500)); 
         }
 
         setAlertStatus("Mengirim semua data multi-sudut ke Spreadsheet...", false);

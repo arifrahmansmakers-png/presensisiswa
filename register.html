@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pendaftaran Wajah Siswa - SMAN 1 Kersana</title>
+    <title>Pendaftaran Wajah Multi-Sudut - SMAN 1 Kersana</title>
     <!-- CDN jsDelivr stabil untuk @vladmandic/face-api -->
     <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
     <style>
@@ -29,7 +29,7 @@
 <body>
 
 <div class="container">
-    <h2>📝 Pendaftaran Wajah Siswa</h2>
+    <h2>📝 Pendaftaran Wajah Multi-Sudut</h2>
     <div class="subtitle">SMAN 1 Kersana</div>
 
     <div class="form-group">
@@ -45,7 +45,6 @@
     <div class="form-group">
         <label>Telegram Chat ID (Untuk Notifikasi):</label>
         <input type="text" id="chatId" placeholder="Contoh: 123456789">
-        <!-- Panduan Tata Cara Chat ID -->
         <div class="telegram-guide">
             💡 <b>Cara Mendapatkan Chat ID Telegram:</b><br>
             1. Buka Telegram, cari bot: <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a><br>
@@ -58,7 +57,7 @@
         <video id="video" autoplay muted playsinline></video>
     </div>
 
-    <button id="btnRegister" onclick="registerFace()" disabled>Menyiapkan Sistem...</button>
+    <button id="btnRegister" onclick="startMultiAngleRegistration()" disabled>Menyiapkan Sistem...</button>
     <div id="status">Memuat model AI dan kamera...</div>
 
     <div class="link-nav">
@@ -102,7 +101,7 @@
         }
 
         try {
-            setAlertStatus("Kamera aktif. Memuat model AI dari folder models...");
+            setAlertStatus("Kamera aktif. Memuat model AI dari folder models...", false);
             const MODEL_URL = "./models";
             
             await lib.loadSsdMobilenetv1Model(MODEL_URL);
@@ -111,14 +110,15 @@
 
             setAlertStatus("✅ Siap Mendaftarkan Wajah", false);
             btnRegister.disabled = false;
-            btnRegister.innerText = "Daftarkan Wajah Sekarang";
+            btnRegister.innerText = "Mulai Pendaftaran Multi-Sudut";
         } catch (err) {
             console.error("Detail Error Model:", err);
             setAlertStatus("⚠️ Gagal memuat file model (.bin) dari folder models.", true);
         }
     }
 
-    async function registerFace() {
+    // Fungsi otomatis mengambil beberapa sudut (multi-angle) secara berurutan
+    async function startMultiAngleRegistration() {
         let lib = window.faceapi || faceapi;
         const nisn = document.getElementById('nisn').value.trim();
         const nama = document.getElementById('nama').value.trim();
@@ -130,19 +130,37 @@
         }
 
         btnRegister.disabled = true;
-        setAlertStatus("Mendeteksi wajah di depan kamera...", false);
+        let collectedDescriptors = [];
 
-        const detection = await lib.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+        // Panduan pengambilan 3 sudut berbeda
+        const angles = [
+            { name: "1. Menghadap Lurus ke Depan", delay: 2000 },
+            { name: "2. Sedikit Menoleh ke Kiri", delay: 2000 },
+            { name: "3. Sedikit Menoleh ke Kanan", delay: 2000 }
+        ];
 
-        if (!detection) {
-            alert("Wajah tidak terdeteksi dengan jelas! Posisikan wajah di tengah kamera.");
-            btnRegister.disabled = false;
-            setAlertStatus("✅ Siap Mendaftarkan Wajah", false);
-            return;
+        for (let i = 0; i < angles.length; i++) {
+            setAlertStatus(`📸 Posisi: ${angles[i].name}... (Bersiap)`, false);
+            await new Promise(resolve => setTimeout(resolve, 1500)); // Jeda persiapan siswa
+
+            setAlertStatus(`📸 Mengambil sampel: ${angles[i].name}...`, false);
+            
+            const detection = await lib.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+
+            if (!detection) {
+                alert(`Wajah tidak terdeteksi pada posisi "${angles[i].name}"! Pastikan wajah terlihat jelas di kamera. Pendaftaran dibatalkan.`);
+                btnRegister.disabled = false;
+                setAlertStatus("✅ Siap Mendaftarkan Wajah", false);
+                return;
+            }
+
+            // Simpan descriptor dari sudut ini
+            collectedDescriptors.push(Array.from(detection.descriptor));
+            setAlertStatus(`✔️ Sampel ${i + 1} berhasil diambil!`, false);
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
 
-        setAlertStatus("Mengirim data wajah ke Spreadsheet...", false);
-        const descriptorArray = Array.from(detection.descriptor);
+        setAlertStatus("Mengirim semua data multi-sudut ke Spreadsheet...", false);
 
         try {
             let response = await fetch(WEB_APP_URL, {
@@ -152,17 +170,17 @@
                     nisn: nisn,
                     nama: nama,
                     chatId: chatId,
-                    descriptors: [descriptorArray]
+                    descriptors: collectedDescriptors // Mengirim 3 sampel sudut sekaligus!
                 })
             });
             let result = await response.json();
 
             if (result.status === "success") {
-                alert("Sukses! Pendaftaran wajah siswa berhasil.");
+                alert("Sukses! Pendaftaran wajah multi-sudut siswa berhasil.");
                 document.getElementById('nisn').value = '';
                 document.getElementById('nama').value = '';
                 document.getElementById('chatId').value = '';
-                setAlertStatus("✅ Pendaftaran Berhasil!", false);
+                setAlertStatus("✅ Pendaftaran Multi-Sudut Berhasil!", false);
             } else {
                 alert("Gagal: " + result.message);
                 setAlertStatus("⚠️ Gagal menyimpan ke Spreadsheet", true);
@@ -174,6 +192,7 @@
         }
 
         btnRegister.disabled = false;
+        btnRegister.innerText = "Mulai Pendaftaran Multi-Sudut";
     }
 
     window.addEventListener('DOMContentLoaded', initCameraAndAI);

@@ -88,26 +88,32 @@
                 method: "POST",
                 body: JSON.stringify({ action: "getData" })
             });
-            const dataSiswa = await res.json();
+            const responseData = await res.json();
 
-            if (!Array.isArray(dataSiswa) || dataSiswa.length === 0) {
-                setAlertStatus("⚠️ Belum ada data siswa terdaftar di Spreadsheet!", false);
+            // Menyesuaikan struktur data JSON (baik berupa array langsung maupun dibungkus objek)
+            const dataSiswa = Array.isArray(responseData) ? responseData : (responseData.data || []);
+
+            if (dataSiswa.length === 0) {
+                setAlertStatus("⚠️ Belum ada data siswa terdaftar di Spreadsheet!", true);
                 return;
             }
 
             let labeledDescriptors = dataSiswa.map(item => {
-                registeredStudents[item.nisn.toString()] = item.nama || item.nisn;
-                let floatArrays = item.descriptors.map(desc => new Float32Array(desc));
-                return new lib.LabeledFaceDescriptors(item.nisn.toString(), floatArrays);
+                const nisnStr = item.nisn ? item.nisn.toString() : "";
+                registeredStudents[nisnStr] = item.nama || nisnStr;
+                
+                // Mengubah format descriptors array kembali menjadi Float32Array untuk face-api
+                let floatArrays = (item.descriptors || []).map(desc => new Float32Array(desc));
+                return new lib.LabeledFaceDescriptors(nisnStr, floatArrays);
             });
 
             // Threshold 0.55 disesuaikan agar cocok untuk jarak menengah/tinggi
             faceMatcher = new lib.FaceMatcher(labeledDescriptors, 0.55);
-            setAlertStatus("✅ Sistem Multi-Wajah Standby. Silakan lewat di depan kamera.", false);
+            setAlertStatus(`✅ Sistem Multi-Wajah Standby (${dataSiswa.length} siswa dimuat). Silakan lewat di depan kamera.`, false);
 
         } catch (err) {
             console.error("Detail Error Model:", err);
-            setAlertStatus("⚠️ Gagal memuat model. Periksa folder ./models di GitHub.", true);
+            setAlertStatus("⚠️ Gagal memuat model atau mengambil data dari Spreadsheet.", true);
         }
     }
 

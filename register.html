@@ -8,7 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); min-height: 100vh; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-        .container { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); padding: 30px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); max-width: 500px; width: 100%; }
+        .container { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); padding: 30px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); max-width: 650px; width: 100%; }
         h2 { color: #222; text-align: center; margin-bottom: 5px; font-weight: 700; }
         .subtitle { color: #666; font-size: 13px; text-align: center; margin-bottom: 20px; }
         .form-group { margin-bottom: 15px; }
@@ -16,8 +16,14 @@
         input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
         .telegram-guide { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 10px; border-radius: 6px; font-size: 12px; color: #0d47a1; margin-top: 5px; }
         .telegram-guide a { color: #1565c0; font-weight: bold; text-decoration: none; }
-        .video-box { position: relative; display: block; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.15); background: #000; width: 100%; height: 260px; margin-bottom: 15px; }
-        video { display: block; width: 100%; height: 100%; object-fit: cover; }
+        
+        /* Diperlebar dan ditambahkan posisi relatif untuk menampung canvas overlay */
+        .video-box { position: relative; display: block; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.15); background: #000; width: 100%; height: 380px; margin-bottom: 15px; }
+        
+        /* Mirror effect pada video dan canvas agar arah kanan-kiri tidak terbalik */
+        video { display: block; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        canvas { position: absolute; top: 0; left: 0; transform: scaleX(-1); }
+
         button { width: 100%; background: #11998e; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.3s; }
         button:hover { background: #0e7c73; }
         button:disabled { background: #ccc; cursor: not-allowed; }
@@ -53,7 +59,7 @@
         </div>
     </div>
 
-    <div class="video-box">
+    <div class="video-box" id="videoBox">
         <video id="video" autoplay muted playsinline></video>
     </div>
 
@@ -69,7 +75,10 @@
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyKqKrk5LnQ-he6uedN0NEE1ZC21dzgElhR4MTu5ANqcTo-NyKqBOoaL-kcmrMr1XmqrA/exec";
 
     const video = document.getElementById('video');
+    const videoBox = document.getElementById('videoBox');
     const btnRegister = document.getElementById('btnRegister');
+    let canvas = null;
+    let detectionInterval = null;
 
     function setAlertStatus(text, isError) {
         const statusEl = document.getElementById('status');
@@ -111,6 +120,34 @@
             setAlertStatus("✅ Siap Mendaftarkan Wajah", false);
             btnRegister.disabled = false;
             btnRegister.innerText = "Mulai Pendaftaran Multi-Sudut";
+
+            // Buat canvas overlay setelah video siap diputar
+            video.addEventListener('play', () => {
+                canvas = lib.createCanvasFromMedia(video);
+                videoBox.appendChild(canvas);
+                const displaySize = { width: video.clientWidth || 640, height: video.clientHeight || 380 };
+                lib.matchDimensions(canvas, displaySize);
+
+                // Jalankan loop real-time untuk menampilkan kotak pendeteksi wajah
+                detectionInterval = setInterval(async () => {
+                    const detections = await lib.detectSingleFace(video, new lib.SsdMobilenetv1Options({ inputSize: 512, minConfidence: 0.5 }))
+                                                .withFaceLandmarks();
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    if (detections) {
+                        const resizedDetections = lib.resizeResults(detections, displaySize);
+                        const drawBox = new lib.draw.DrawBox(resizedDetections.detection.box, { 
+                            label: "Wajah Terdeteksi", 
+                            boxColor: "#00ff66",
+                            lineWidth: 2 
+                        });
+                        drawBox.draw(canvas);
+                    }
+                }, 200);
+            });
+
         } catch (err) {
             console.error("Detail Error Model:", err);
             setAlertStatus("⚠️ Gagal memuat file model (.bin) dari folder models.", true);
@@ -121,7 +158,9 @@
     async function getFaceDescriptorWithRetry(angleName, maxRetries = 25) {
         let lib = window.faceapi || faceapi;
         for (let attempt = 0; attempt < maxRetries; attempt++) {
-            const detection = await lib.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+            const detection = await lib.detectSingleFace(video, new lib.SsdMobilenetv1Options({ inputSize: 512, minConfidence: 0.5 }))
+                                        .withFaceLandmarks()
+                                        .withFaceDescriptor();
             if (detection) {
                 return detection.descriptor;
             }
@@ -153,7 +192,7 @@
         ];
 
         for (let i = 0; i < angles.length; i++) {
-            // Jeda persiapan sebelum masuk ke posisi baru (memberikan waktu bagi siswa bersiap)
+            // Jeda persiapan sebelum masuk ke posisi baru
             setAlertStatus(`⏳ Bersiap untuk posisi: ${angles[i].name}...`, false);
             await new Promise(resolve => setTimeout(resolve, 2000)); // Jeda 2 detik antar sudut
 

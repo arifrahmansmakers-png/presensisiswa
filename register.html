@@ -17,10 +17,7 @@
         .telegram-guide { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 10px; border-radius: 6px; font-size: 12px; color: #0d47a1; margin-top: 5px; }
         .telegram-guide a { color: #1565c0; font-weight: bold; text-decoration: none; }
         
-        /* Diperlebar dan ditambahkan posisi relatif untuk menampung canvas overlay */
         .video-box { position: relative; display: block; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.15); background: #000; width: 100%; height: 380px; margin-bottom: 15px; }
-        
-        /* Mirror effect pada video dan canvas agar arah kanan-kiri tidak terbalik */
         video { display: block; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         canvas { position: absolute; top: 0; left: 0; transform: scaleX(-1); }
 
@@ -72,7 +69,7 @@
 </div>
 
 <script>
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw0lWc3yrZcqxYz85lL-jiNmPgaBW7Jghz2gktuxGA_WivvcnpThXxO_KfhHBO6gDKG2A/exec";
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyKqKrk5LnQ-he6uedN0NEE1ZC21dzgElhR4MTu5ANqcTo-NyKqBOoaL-kcmrMr1XmqrA/exec";
 
     const video = document.getElementById('video');
     const videoBox = document.getElementById('videoBox');
@@ -121,14 +118,12 @@
             btnRegister.disabled = false;
             btnRegister.innerText = "Mulai Pendaftaran Multi-Sudut";
 
-            // Buat canvas overlay setelah video siap diputar
             video.addEventListener('play', () => {
                 canvas = lib.createCanvasFromMedia(video);
                 videoBox.appendChild(canvas);
                 const displaySize = { width: video.clientWidth || 640, height: video.clientHeight || 380 };
                 lib.matchDimensions(canvas, displaySize);
 
-                // Jalankan loop real-time untuk menampilkan kotak pendeteksi wajah
                 detectionInterval = setInterval(async () => {
                     const detections = await lib.detectSingleFace(video, new lib.SsdMobilenetv1Options({ inputSize: 512, minConfidence: 0.5 }))
                                                 .withFaceLandmarks();
@@ -139,7 +134,7 @@
                     if (detections) {
                         const resizedDetections = lib.resizeResults(detections, displaySize);
                         const drawBox = new lib.draw.DrawBox(resizedDetections.detection.box, { 
-                            label: "Wajah Terdeteksi", 
+                            label: "Posisi Wajah", 
                             boxColor: "#00ff66",
                             lineWidth: 2 
                         });
@@ -154,7 +149,6 @@
         }
     }
 
-    // Fungsi pembantu untuk mendeteksi wajah dengan retry (mencegah stuck)
     async function getFaceDescriptorWithRetry(angleName, maxRetries = 25) {
         let lib = window.faceapi || faceapi;
         for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -170,7 +164,6 @@
         return null;
     }
 
-    // Fungsi otomatis mengambil beberapa sudut (multi-angle) secara berurutan dengan jeda
     async function startMultiAngleRegistration() {
         const nisn = document.getElementById('nisn').value.trim();
         const nama = document.getElementById('nama').value.trim();
@@ -182,9 +175,44 @@
         }
 
         btnRegister.disabled = true;
-        let collectedDescriptors = [];
+        let lib = window.faceapi || faceapi;
 
-        // Panduan pengambilan 3 sudut berbeda
+        // --- VALIDASI ANTI-DUPLIKAT (CEK KEMIRIPAN WAJAH > 95% / THRESHOLD 0.48) ---
+        setAlertStatus("🔍 Memeriksa apakah wajah sudah terdaftar...", false);
+        try {
+            let res = await fetch(WEB_APP_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "getData" })
+            });
+            let responseData = await res.json();
+            let existingStudents = Array.isArray(responseData) ? responseData : (responseData.data || []);
+
+            if (existingStudents.length > 0) {
+                let existingDescriptors = existingStudents.map(item => {
+                    let floatArrays = (item.descriptors || []).map(desc => new Float32Array(desc));
+                    return new lib.LabeledFaceDescriptors(item.nisn.toString(), floatArrays);
+                });
+                
+                let duplicateMatcher = new lib.FaceMatcher(existingDescriptors, 0.48); 
+                const sampleCheck = await lib.detectSingleFace(video, new lib.SsdMobilenetv1Options({ inputSize: 512, minConfidence: 0.5 }))
+                                             .withFaceLandmarks()
+                                             .withFaceDescriptor();
+                if (sampleCheck) {
+                    const matchResult = duplicateMatcher.findBestMatch(sampleCheck.descriptor);
+                    if (matchResult.label !== "unknown") {
+                        alert(`❌ Pendaftaran Ditolak! Wajah ini sudah terdaftar atas NISN: ${matchResult.label}. Tingkat kemiripan terlalu tinggi.`);
+                        btnRegister.disabled = false;
+                        setAlertStatus("⚠️ Wajah sudah terdaftar di sistem.", true);
+                        return;
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("Gagal melakukan pengecekan duplikat:", e);
+        }
+        // --------------------------------------------------------------------------
+
+        let collectedDescriptors = [];
         const angles = [
             { name: "1. Menghadap Lurus ke Depan" },
             { name: "2. Sedikit Menoleh ke Kiri" },
@@ -192,13 +220,10 @@
         ];
 
         for (let i = 0; i < angles.length; i++) {
-            // Jeda persiapan sebelum masuk ke posisi baru
             setAlertStatus(`⏳ Bersiap untuk posisi: ${angles[i].name}...`, false);
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Jeda 2 detik antar sudut
+            await new Promise(resolve => setTimeout(resolve, 2000));
 
             setAlertStatus(`📸 Ambil posisi: ${angles[i].name}...`, false);
-            
-            // Proses pengambilan sampel dengan retry
             const descriptor = await getFaceDescriptorWithRetry(angles[i].name);
 
             if (!descriptor) {
@@ -208,11 +233,8 @@
                 return;
             }
 
-            // Simpan descriptor dari sudut ini
             collectedDescriptors.push(Array.from(descriptor));
             setAlertStatus(`✔️ Sampel ${i + 1} (${angles[i].name}) berhasil diambil!`, false);
-            
-            // Jeda singkat setelah sampel berhasil diambil sebelum lanjut ke tahap berikutnya
             await new Promise(resolve => setTimeout(resolve, 1500)); 
         }
 
@@ -226,7 +248,7 @@
                     nisn: nisn,
                     nama: nama,
                     chatId: chatId,
-                    descriptors: collectedDescriptors // Mengirim 3 sampel sudut sekaligus!
+                    descriptors: collectedDescriptors 
                 })
             });
             let result = await response.json();

@@ -64,7 +64,7 @@
         }
 
         .video-box {
-            position: relative; /* Wajib relative agar canvas absolute menempel pas */
+            position: relative;
             display: block;
             border-radius: 14px;
             overflow: hidden;
@@ -78,7 +78,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transform: scaleX(-1); /* Efek Cermin (Mirror) */
+            transform: scaleX(-1);
         }
 
         canvas {
@@ -149,7 +149,6 @@
     <h2>🏫 Presensi Kehadiran Siswa</h2>
     <div class="subtitle">Sistem Deteksi Banyak Wajah Otomatis — SMAN 1 Kersana</div>
     
-    <!-- Card Kotak Kamera -->
     <div class="video-box-card">
         <div class="video-box" id="videoBox">
             <video id="video" autoplay muted playsinline></video>
@@ -158,7 +157,6 @@
 
     <div id="status">Menyalakan kamera perangkat...</div>
     
-    <!-- Tombol Navigasi -->
     <div class="link-nav">
         <a href="register.html" class="btn-accent"><span>➕</span> Pendaftaran Siswa</a>
         <a href="admin.html"><span>🔐</span> Dashboard Admin</a>
@@ -167,7 +165,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, addDoc, query, where, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
           apiKey: "AIzaSyBgwrSnaE7KottacFI0DCUdGP1pQuJjBJw",
@@ -186,27 +184,35 @@
     let canvas = null;
     let faceMatcher = null;
     let registeredStudents = {}; 
-    let recentPresensi = {}; 
+    
+    // Set untuk melacak NISN yang sudah sukses diabsen pada sesi aplikasi ini agar tidak berulang
+    let completedPresensiToday = new Set();
+    let isProcessing = false; // Mencegah pengiriman paralel bertubi-tubi
 
-    function setAlertStatus(text, isError) {
+    function setAlertStatus(text, type = "info") {
         const statusEl = document.getElementById('status');
         if (!statusEl) return;
         statusEl.innerText = text;
-        if (isError) {
+        
+        if (type === "error") {
             statusEl.style.background = "rgba(254, 226, 226, 0.9)";
             statusEl.style.color = "#991b1b";
             statusEl.style.borderColor = "rgba(239, 68, 68, 0.3)";
-        } else {
+        } else if (type === "success") {
             statusEl.style.background = "rgba(220, 252, 231, 0.9)";
             statusEl.style.color = "#166534";
             statusEl.style.borderColor = "rgba(34, 197, 94, 0.3)";
+        } else {
+            statusEl.style.background = "rgba(241, 245, 249, 0.9)";
+            statusEl.style.color = "#1e293b";
+            statusEl.style.borderColor = "rgba(203, 213, 225, 0.6)";
         }
     }
 
     async function initSystem() {
         let lib = window.faceapi;
         if (typeof lib === 'undefined') {
-            setAlertStatus("❌ Library faceapi belum terbaca!", true);
+            setAlertStatus("❌ Library faceapi belum terbaca!", "error");
             return;
         }
 
@@ -215,7 +221,7 @@
             video.srcObject = stream;
         } catch (err) {
             console.error(err);
-            setAlertStatus("Gagal mengakses kamera! Periksa izin browser.", true);
+            setAlertStatus("Gagal mengakses kamera! Periksa izin browser.", "error");
             return;
         }
 
@@ -236,7 +242,7 @@
             });
 
             if (dataSiswa.length === 0) {
-                setAlertStatus("⚠️ Belum ada data siswa terdaftar di Firebase!", true);
+                setAlertStatus("⚠️ Belum ada data siswa terdaftar di Firebase!", "error");
                 return;
             }
 
@@ -255,7 +261,6 @@
                 
                 let floatArrays = [];
                 arrayOfArrays.forEach(descArray => {
-                    // Validasi panjang array harus tepat 128 untuk menghindari error dimensi vektor
                     if (Array.isArray(descArray) && descArray.length === 128) {
                         floatArrays.push(new Float32Array(descArray));
                     }
@@ -267,23 +272,22 @@
             });
 
             if (labeledDescriptors.length === 0) {
-                setAlertStatus("⚠️ Data descriptor di Firebase tidak valid atau kosong!", true);
+                setAlertStatus("⚠️ Data descriptor di Firebase tidak valid atau kosong!", "error");
                 return;
             }
 
             faceMatcher = new lib.FaceMatcher(labeledDescriptors, 0.55);
-            setAlertStatus(`✅ Sistem Standby (${labeledDescriptors.length} siswa dimuat). Silakan lewat di depan kamera.`, false);
+            setAlertStatus(`✅ Sistem Standby (${labeledDescriptors.length} siswa dimuat). Silakan lewat di depan kamera.`, "success");
 
         } catch (err) {
             console.error("Detail Error Model:", err);
-            setAlertStatus("⚠️ Gagal memuat model atau mengambil data dari Firebase.", true);
+            setAlertStatus("⚠️ Gagal memuat model atau mengambil data dari Firebase.", "error");
         }
     }
 
     video.addEventListener('play', () => {
         let lib = window.faceapi;
 
-        // Buat canvas secara dinamis untuk menimpa video secara akurat
         if (!canvas) {
             canvas = lib.createCanvasFromMedia(video);
             videoBox.appendChild(canvas);
@@ -295,6 +299,7 @@
         setInterval(async () => {
             if (!faceMatcher || typeof lib === 'undefined' || video.paused || video.ended) return;
             if (video.videoWidth === 0 || video.videoHeight === 0) return;
+            if (isProcessing) return; // Jangan scan baru jika sedang mengirim data presensi ke server
 
             const options = new lib.SsdMobilenetv1Options({ inputSize: 416, minConfidence: 0.5 });
             const detections = await lib.detectAllFaces(video, options)
@@ -307,41 +312,65 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             if (resizedDetections.length > 0) {
-                resizedDetections.forEach(detection => {
+                for (const detection of resizedDetections) {
                     const match = faceMatcher.findBestMatch(detection.descriptor);
                     const box = detection.detection.box;
 
                     let labelText = "Tidak Dikenali";
-                    let boxColor = "#ef4444"; // Merah (Tidak Dikenali / Aman tidak masuk Firebase)
+                    let boxColor = "#ef4444"; // Merah
 
                     if (match.label !== "unknown") {
                         const nisn = match.label;
                         const siswaInfo = registeredStudents[nisn] || { nama: nisn, kelas: "-", telegramId: "" };
-                        labelText = `${siswaInfo.nama} (${siswaInfo.kelas})`;
-                        boxColor = "#22c55e"; // Hijau (Terdaftar & Masuk Log Presensi)
+                        
+                        // Cek apakah siswa ini sudah sukses presensi pada sesi ini
+                        if (completedPresensiToday.has(nisn)) {
+                            labelText = `✔ ${siswaInfo.nama} (Sudah Absen)`;
+                            boxColor = "#3b82f6"; // Biru (Menandakan sudah berhasil sebelumnya)
+                        } else {
+                            labelText = `${siswaInfo.nama} (${siswaInfo.kelas})`;
+                            boxColor = "#22c55e"; // Hijau
 
-                        const now = Date.now();
-                        if (!recentPresensi[nisn] || (now - recentPresensi[nisn] > 10000)) {
-                            recentPresensi[nisn] = now;
-                            kirimPresensiFirebase(nisn, siswaInfo.nama, siswaInfo.kelas, siswaInfo.telegramId);
+                            // Kunci proses agar hanya berjalan 1 kali untuk siswa ini
+                            isProcessing = true;
+                            completedPresensiToday.add(nisn);
+                            
+                            await kirimPresensiFirebase(nisn, siswaInfo.nama, siswaInfo.kelas, siswaInfo.telegramId);
+                            isProcessing = false;
                         }
                     }
 
-                    // Render kotak pembatas dan label nama di atas wajah secara real-time
                     const drawBox = new lib.draw.DrawBox(box, { 
                         label: labelText, 
                         boxColor: boxColor,
                         lineWidth: 3
                     });
                     drawBox.draw(canvas);
-                });
+                }
             }
         }, 300);
     });
 
     async function kirimPresensiFirebase(nisn, namaSiswa, kelasSiswa, telegramId) {
-        setAlertStatus(`🔍 Memproses presensi: ${namaSiswa}...`, false);
+        setAlertStatus(`🔍 Mencatat presensi BERHASIL untuk: ${namaSiswa}...`, "info");
         try {
+            // Cek ekstra ke database apakah hari ini siswa tersebut sudah pernah diabsen sebelumnya
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+
+            const q = query(
+                collection(db, "Log_Presensi"), 
+                where("nisn", "==", nisn),
+                where("timestamp", ">=", Timestamp.fromDate(todayStart))
+            );
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+                setAlertStatus(`ℹ️ ${namaSiswa} sudah tercatat hadir hari ini di database.`, "success");
+                return;
+            }
+
+            // Simpan log ke Firebase
             await addDoc(collection(db, "Log_Presensi"), {
                 nisn: nisn,
                 nama: namaSiswa,
@@ -351,6 +380,7 @@
                 timestamp: new Date()
             });
 
+            // Kirim notifikasi Telegram SEKALI saja
             const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwOySQWGGx-avtP9xDRbLnbYPeMbDrONwGRkVRPuZlLkANgQyB6ayxXlyXjibyAgAg6Aw/exec";
             
             fetch(WEB_APP_URL, {
@@ -365,10 +395,12 @@
                 })
             }).catch(err => console.error("Gagal kirim notif Telegram:", err));
 
-            setAlertStatus(`✅ Hadir: ${namaSiswa} (${kelasSiswa}) - Notifikasi Privat Dikirim`, false);
+            setAlertStatus(`🎉 BERHASIL: Presensi ${namaSiswa} (${kelasSiswa}) telah dicatat & Notifikasi dikirim!`, "success");
         } catch (e) {
             console.error(e);
-            setAlertStatus("❌ Gagal mencatat presensi ke Firebase.", true);
+            setAlertStatus("❌ Gagal mencatat presensi ke Firebase.", "error");
+            completedPresensiToday.delete(nisn); // Lepaskan kunci jika terjadi error agar bisa dicoba lagi
+            isProcessing = false;
         }
     }
 

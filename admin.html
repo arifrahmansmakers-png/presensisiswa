@@ -155,7 +155,7 @@
 
             <div class="flex justify-end gap-3">
                 <button onclick="tutupModalHapus()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-semibold rounded-xl transition">Batal</button>
-                <button onclick="eksekusiHapusData()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition shadow-sm">Ya, Hapus Permanen</button>
+                <button id="btn-eksekusi-hapus" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition shadow-sm">Ya, Hapus Permanen</button>
             </div>
         </div>
     </div>
@@ -377,10 +377,9 @@
 
         window.tutupModalHapus = function() {
             document.getElementById('modal-hapus').classList.add('hidden');
-            currentActionType = null;
         }
 
-        window.eksekusiHapusData = async function() {
+        async function eksekusiHapusData() {
             const tokenInput = document.getElementById('input-token-admin').value;
             if (tokenInput !== TOKEN_RAHASIA) {
                 alert("❌ Token Keamanan Admin Salah! Aksi dibatalkan.");
@@ -398,11 +397,12 @@
                 return;
             }
 
+            const actionToProcess = currentActionType;
             tutupModalHapus();
             showStatus("Memproses penghapusan data di Firebase...");
 
             try {
-                if (currentActionType.startsWith('LOG_')) {
+                if (actionToProcess.startsWith('LOG_')) {
                     const snap = await getDocs(collection(db, "Log_Presensi"));
                     let countDeleted = 0;
 
@@ -410,11 +410,11 @@
                         let data = dSnap.data();
                         let match = false;
 
-                        if (currentActionType === 'LOG_NISN' && data.nisn && data.nisn.toString() === paramVal) {
+                        if (actionToProcess === 'LOG_NISN' && data.nisn && data.nisn.toString() === paramVal) {
                             match = true;
-                        } else if (currentActionType === 'LOG_KELAS' && data.kelas && data.kelas.toLowerCase() === paramVal.toLowerCase()) {
+                        } else if (actionToProcess === 'LOG_KELAS' && data.kelas && data.kelas.toLowerCase() === paramVal.toLowerCase()) {
                             match = true;
-                        } else if (currentActionType === 'LOG_TANGGAL' && data.timestamp) {
+                        } else if (actionToProcess === 'LOG_TANGGAL' && data.timestamp) {
                             let itemDate = data.timestamp.toDate ? data.timestamp.toDate() : new Date(data.timestamp);
                             let targetDate = new Date(paramVal);
                             if (itemDate.toDateString() === targetDate.toDateString()) {
@@ -430,7 +430,7 @@
                     showStatus(`✅ Berhasil menghapus ${countDeleted} data log presensi.`);
                     tarikDataLog();
 
-                } else if (currentActionType.startsWith('SISWA_')) {
+                } else if (actionToProcess.startsWith('SISWA_')) {
                     const snap = await getDocs(collection(db, "Data_Siswa"));
                     let countDeleted = 0;
 
@@ -438,11 +438,11 @@
                         let data = dSnap.data();
                         let match = false;
 
-                        if (currentActionType === 'SISWA_NISN' && data.nisn && data.nisn.toString() === paramVal) {
+                        if (actionToProcess === 'SISWA_NISN' && data.nisn && data.nisn.toString() === paramVal) {
                             match = true;
-                        } else if (currentActionType === 'SISWA_KELAS' && data.kelas && data.kelas.toLowerCase() === paramVal.toLowerCase()) {
+                        } else if (actionToProcess === 'SISWA_KELAS' && data.kelas && data.kelas.toLowerCase() === paramVal.toLowerCase()) {
                             match = true;
-                        } else if (currentActionType === 'SISWA_SEMUA') {
+                        } else if (actionToProcess === 'SISWA_SEMUA') {
                             match = true;
                         }
 
@@ -459,6 +459,9 @@
                 showStatus("❌ Terjadi kesalahan saat menghapus data di Firebase.", true);
             }
         }
+
+        // Binding tombol eksekusi via event listener untuk menghindari isu scope/null click
+        document.getElementById('btn-eksekusi-hapus').addEventListener('click', eksekusiHapusData);
 
         window.exportToCSV = function() {
             if (cachedLogData.length === 0) {

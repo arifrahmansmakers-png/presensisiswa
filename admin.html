@@ -3,200 +3,491 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Rekap Presensi SMAN 1 Kersana</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 950px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
-        h2 { color: #11998e; margin-bottom: 5px; }
-        .subtitle { color: #666; font-size: 14px; margin-bottom: 25px; }
-        
-        #loginBox { background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 400px; margin: 80px auto; text-align: center; }
-        #adminContent { display: none; }
-        
-        .filter-box { display: flex; gap: 15px; background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px; align-items: flex-end; flex-wrap: wrap; }
-        .form-group { display: flex; flex-direction: column; gap: 5px; }
-        label { font-size: 13px; font-weight: bold; color: #555; }
-        input, select, button { padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-        button { background: #11998e; color: white; border: none; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-        button:hover { background: #0e7e75; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; font-size: 14px; }
-        th { background: #11998e; color: white; }
-        tr:nth-child(even) { background: #f9f9f9; }
-        .status-hadir { color: #2e7d32; font-weight: bold; }
-    </style>
+    <title>Dashboard Admin - Presensi SMAN 1 Kersana</title>
+    <!-- Tailwind CSS untuk tampilan modern & minimalis -->
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="bg-slate-100 min-h-screen font-sans text-slate-800">
 
-<div id="loginBox">
-    <h2>🔐 Login Admin</h2>
-    <p style="font-size: 13px; color: #666; margin-bottom: 20px;">Masukkan password untuk melihat rekap presensi.</p>
-    <div class="form-group" style="margin-bottom: 15px;">
-        <input type="password" id="inputPassword" placeholder="Password Admin">
-    </div>
-    <button onclick="cekLogin()" style="width: 100%;">Masuk Dashboard</button>
-</div>
-
-<div class="container" id="adminContent">
-    <h2>📊 Dashboard Rekap Presensi</h2>
-    <div class="subtitle">Sistem Monitoring Kehadiran Siswa - SMAN 1 Kersana</div>
-
-    <div class="filter-box">
-        <div class="form-group">
-            <label>Cakupan Data:</label>
-            <select id="filterCakupan" onchange="toggleKelasInput()">
-                <option value="semua">Keseluruhan (Semua Kelas)</option>
-                <option value="perkelas">Per Kelas</option>
-            </select>
-        </div>
-
-        <div class="form-group" id="groupKelas" style="display: none;">
-            <label>Pilih Kelas:</label>
-            <select id="pilihKelas">
-                <!-- Kelas X -->
-                <option value="X-1">X-1</option><option value="X-2">X-2</option><option value="X-3">X-3</option>
-                <option value="X-4">X-4</option><option value="X-5">X-5</option><option value="X-6">X-6</option>
-                <option value="X-7">X-7</option><option value="X-8">X-8</option><option value="X-9">X-9</option>
-                <!-- Kelas XI -->
-                <option value="XI-1">XI-1</option><option value="XI-2">XI-2</option><option value="XI-3">XI-3</option>
-                <option value="XI-4">XI-4</option><option value="XI-5">XI-5</option><option value="XI-6">XI-6</option>
-                <option value="XI-7">XI-7</option><option value="XI-8">XI-8</option><option value="XI-9">XI-9</option>
-                <!-- Kelas XII -->
-                <option value="XII-1">XII-1</option><option value="XII-2">XII-2</option><option value="XII-3">XII-3</option>
-                <option value="XII-4">XII-4</option><option value="XII-5">XII-5</option><option value="XII-6">XII-6</option>
-                <option value="XII-7">XII-7</option><option value="XII-8">XII-8</option><option value="XII-9">XII-9</option>
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label>Tanggal Rekap:</label>
-            <input type="date" id="inputTanggal">
-        </div>
-
-        <button onclick="tarikDataRekap()">🔍 Tarik Data</button>
-    </div>
-
-    <div id="statusInfo" style="font-weight: bold; margin-bottom: 10px; color: #666;">Silakan tentukan filter dan klik "Tarik Data".</div>
-
-    <table>
-        <thead>
-            <tr>
-                <th>No</th>
-                <th>Waktu Kehadiran</th>
-                <th>NISN</th>
-                <th>Nama Siswa</th>
-                <th>Kelas</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody id="tableBody">
-            <tr><td colspan="6" style="text-align: center; color: #999;">Belum ada data yang ditarik.</td></tr>
-        </tbody>
-    </table>
-
-    <div style="margin-top: 20px;">
-        <a href="index.html" style="color: #11998e; text-decoration: none; font-weight: bold;">⬅️ Kembali ke Halaman Utama</a>
-    </div>
-</div>
-
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-    const firebaseConfig = {
-          apiKey: "AIzaSyBgwrSnaE7KottacFI0DCUdGP1pQuJjBJw",
-          authDomain: "presensi-siswa-2625a.firebaseapp.com",
-          projectId: "presensi-siswa-2625a",
-          storageBucket: "presensi-siswa-2625a.firebasestorage.app",
-          messagingSenderId: "109107178409",
-          appId: "1:109107178409:web:6cb26aadb7e6dbeb8ef2b8"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    document.getElementById('inputTanggal').valueAsDate = new Date();
-    const ADMIN_PASSWORD = "smankersana123"; // Ubah password admin di sini
-
-    window.cekLogin = function() {
-        const pass = document.getElementById('inputPassword').value;
-        if (pass === ADMIN_PASSWORD) {
-            document.getElementById('loginBox').style.display = 'none';
-            document.getElementById('adminContent').style.display = 'block';
-        } else {
-            alert("Password salah!");
-        }
-    }
-
-    window.toggleKelasInput = function() {
-        const cakupan = document.getElementById('filterCakupan').value;
-        document.getElementById('groupKelas').style.display = (cakupan === 'perkelas') ? 'flex' : 'none';
-    }
-
-    window.tarikDataRekap = async function() {
-        const cakupan = document.getElementById('filterCakupan').value;
-        const kelasTarget = document.getElementById('pilihKelas').value;
-        const tanggalStr = document.getElementById('inputTanggal').value;
+    <!-- Container Utama -->
+    <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         
-        const statusInfo = document.getElementById('statusInfo');
-        const tableBody = document.getElementById('tableBody');
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6 gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900">🛡️ Dashboard Admin Presensi</h1>
+                <p class="text-sm text-slate-500">Kelola log kehadiran dan database siswa SMAN 1 Kersana</p>
+            </div>
+            <div>
+                <a href="index.html" class="inline-flex items-center px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-xl hover:bg-slate-700 transition shadow-sm">
+                    ← Kembali ke Kamera Utama
+                </a>
+            </div>
+        </div>
 
-        statusInfo.innerText = "⏳ Sedang mengambil data dari Firebase...";
-        tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center;">Memuat data...</td></tr>`;
+        <!-- Status Bar -->
+        <div id="status-bar" class="mb-6 p-4 rounded-xl text-sm font-medium bg-blue-50 border border-blue-200 text-blue-800 hidden">
+            Memuat data...
+        </div>
 
-        try {
-            const startOfDay = new Date(tanggalStr + "T00:00:00");
-            const endOfDay = new Date(tanggalStr + "T23:59:59");
-
-            let q = query(
-                collection(db, "Log_Presensi"),
-                where("timestamp", ">=", startOfDay),
-                where("timestamp", "<=", endOfDay)
-            );
-
-            if (cakupan === 'perkelas') {
-                q = query(
-                    collection(db, "Log_Presensi"),
-                    where("kelas", "==", kelasTarget),
-                    where("timestamp", ">=", startOfDay),
-                    where("timestamp", "<=", endOfDay)
-                );
-            }
-
-            const querySnapshot = await getDocs(q);
-            let dataLog = [];
-            querySnapshot.forEach((doc) => {
-                dataLog.push(doc.data());
-            });
-
-            statusInfo.innerText = `✅ Berhasil memuat ${dataLog.length} data kehadiran.`;
+        <!-- Grid Kontrol Utama -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             
-            if (dataLog.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #999;">Tidak ada data pada filter ini.</td></tr>`;
+            <!-- PANEL 1: FILTER & TARIK DATA -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
+                <h2 class="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                    <span>📊</span> Tarik & Filter Data Log Presensi
+                </h2>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Filter Kelas</label>
+                        <select id="filter-kelas" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="ALL">Semua Kelas</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Mode Waktu</label>
+                        <select id="filter-mode-waktu" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" onchange="toggleDateInputs()">
+                            <option value="ALL">Semua Waktu</option>
+                            <option value="DAILY">Per Hari (Tanggal Tertentu)</option>
+                            <option value="RANGE">Range Waktu (Dari - Sampai)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Input Tanggal Dinamis -->
+                <div id="container-tanggal" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 hidden">
+                    <div id="box-tgl-mulai">
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1" id="label-tgl-mulai">Tanggal</label>
+                        <input type="date" id="input-tgl-mulai" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div id="box-tgl-selesai" class="hidden">
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Sampai Tanggal</label>
+                        <input type="date" id="input-tgl-selesai" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </div>
+
+                <button onclick="tarikDataLog()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-2">
+                    <span>🔍</span> Tampilkan Data Presensi
+                </button>
+            </div>
+
+            <!-- PANEL 2: PENGATURAN HAPUS / MAINTENANCE -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2 text-red-600">
+                    <span>⚠️</span> Zona Penghapusan Data
+                </h2>
+                
+                <div class="space-y-3">
+                    <button onclick="bukaModalHapus('LOG_NISN')" class="w-full py-2 px-3 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-medium rounded-xl text-xs transition text-left flex justify-between items-center">
+                        <span>Hapus Log per NISN</span> <span>🗑️</span>
+                    </button>
+                    <button onclick="bukaModalHapus('LOG_KELAS')" class="w-full py-2 px-3 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-medium rounded-xl text-xs transition text-left flex justify-between items-center">
+                        <span>Hapus Log per Kelas</span> <span>🗑️</span>
+                    </button>
+                    <button onclick="bukaModalHapus('LOG_TANGGAL')" class="w-full py-2 px-3 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-medium rounded-xl text-xs transition text-left flex justify-between items-center">
+                        <span>Hapus Log Berdasarkan Waktu</span> <span>🗑️</span>
+                    </button>
+                    <hr class="border-slate-200 my-2">
+                    <button onclick="bukaModalHapus('SISWA_NISN')" class="w-full py-2 px-3 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-medium rounded-xl text-xs transition text-left flex justify-between items-center">
+                        <span>Hapus Siswa Terdaftar (per NISN)</span> <span>👤</span>
+                    </button>
+                    <button onclick="bukaModalHapus('SISWA_KELAS')" class="w-full py-2 px-3 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-medium rounded-xl text-xs transition text-left flex justify-between items-center">
+                        <span>Hapus Siswa per Kelas</span> <span>🏫</span>
+                    </button>
+                    <button onclick="bukaModalHapus('SISWA_SEMUA')" class="w-full py-2 px-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl text-xs transition text-left flex justify-between items-center shadow-sm">
+                        <span>⚠️ Reset Semua Data Siswa</span> <span>💥</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- TABEL DATA PRESENSI -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-6 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <h3 class="font-bold text-slate-900 text-lg">📋 Tabel Hasil Log Presensi (<span id="jumlah-data">0</span> data)</h3>
+                <button onclick="exportToCSV()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition shadow-sm flex items-center gap-2">
+                    <span>📥</span> Download CSV / Excel
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wider border-b border-slate-200">
+                            <th class="p-4 font-semibold">Waktu Hadir</th>
+                            <th class="p-4 font-semibold">NISN</th>
+                            <th class="p-4 font-semibold">Nama Siswa</th>
+                            <th class="p-4 font-semibold">Kelas</th>
+                            <th class="p-4 font-semibold">Status</th>
+                            <th class="p-4 font-semibold">Telegram ID</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabel-log-body" class="divide-y divide-slate-200 text-sm text-slate-700">
+                        <tr>
+                            <td colspan="6" class="p-8 text-center text-slate-400">Silakan klik "Tampilkan Data Presensi" di atas.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MODAL KONFIRMASI HAPUS DENGAN TOKEN -->
+    <div id="modal-hapus" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white max-w-md w-full p-6 rounded-2xl shadow-xl border border-slate-200">
+            <h3 id="modal-title" class="text-lg font-bold text-slate-900 mb-2">Konfirmasi Penghapusan</h3>
+            <p id="modal-desc" class="text-sm text-slate-600 mb-4">Aksi ini bersifat permanen dan tidak dapat dikembalikan.</p>
+            
+            <!-- Input Parameter Tambahan (Opsional sesuai tipe) -->
+            <div id="modal-input-container" class="mb-4">
+                <!-- Akan diisi secara dinamis lewat JS -->
+            </div>
+
+            <!-- Input Token -->
+            <div class="mb-5">
+                <label class="block text-xs font-semibold text-red-600 uppercase mb-1">Masukkan Token Keamanan Admin</label>
+                <input type="password" id="input-token-admin" placeholder="Contoh: KERSANA2026" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-red-500 outline-none">
+                <p class="text-xs text-slate-400 mt-1">Token default bawaan: <code class="bg-slate-100 px-1 rounded text-slate-600 font-mono">KERSANA2026</code></p>
+            </div>
+
+            <div class="flex justify-end gap-3">
+                <button onclick="tutupModalHapus()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-semibold rounded-xl transition">Batal</button>
+                <button onclick="eksekusiHapusData()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition shadow-sm">Ya, Hapus Permanen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT FIREBASE & LOGIKA ADMIN -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, getDocs, deleteDoc, doc, query, where, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+              apiKey: "AIzaSyBgwrSnaE7KottacFI0DCUdGP1pQuJjBJw",
+              authDomain: "presensi-siswa-2625a.firebaseapp.com",
+              projectId: "presensi-siswa-2625a",
+              storageBucket: "presensi-siswa-2625a.firebasestorage.app",
+              messagingSenderId: "109107178409",
+              appId: "1:109107178409:web:6cb26aadb7e6dbeb8ef2b8"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        const TOKEN_RAHASIA = "KERSANA2026"; // Anda dapat mengubah token admin di sini
+        let currentActionType = null;
+        let cachedLogData = [];
+
+        window.showStatus = function(msg, isError = false) {
+            const sb = document.getElementById('status-bar');
+            sb.innerText = msg;
+            sb.classList.remove('hidden', 'bg-blue-50', 'border-blue-200', 'text-blue-800', 'bg-red-50', 'border-red-200', 'text-red-800');
+            if(isError) {
+                sb.classList.add('bg-red-50', 'border-red-200', 'text-red-800');
+            } else {
+                sb.classList.add('bg-blue-50', 'border-blue-200', 'text-blue-800');
+            }
+        }
+
+        // Inisialisasi awal: Muat daftar kelas ke dropdown filter
+        async function initAdmin() {
+            showStatus("Memuat daftar kelas dari database siswa...");
+            try {
+                const querySnapshot = await getDocs(collection(db, "Data_Siswa"));
+                const selectKelas = document.getElementById('filter-kelas');
+                let daftarKelas = new Set();
+
+                querySnapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    if(data.kelas) daftarKelas.add(data.kelas.trim());
+                });
+
+                daftarKelas.forEach(kls => {
+                    let opt = document.createElement('option');
+                    opt.value = kls;
+                    opt.innerText = kls;
+                    selectKelas.appendChild(opt);
+                });
+
+                showStatus("Sistem Admin siap. Silakan pilih filter dan tarik data.");
+                tarikDataLog(); // Otomatis tarik data pertama kali
+            } catch (err) {
+                console.error(err);
+                showStatus("Gagal memuat referensi kelas dari Firebase.", true);
+            }
+        }
+
+        window.toggleDateInputs = function() {
+            const mode = document.getElementById('filter-mode-waktu').value;
+            const containerTgl = document.getElementById('container-tanggal');
+            const boxTglMulai = document.getElementById('box-tgl-mulai');
+            const boxTglSelesai = document.getElementById('box-tgl-selesai');
+            const labelTglMulai = document.getElementById('label-tgl-mulai');
+
+            if (mode === "ALL") {
+                containerTgl.classList.add('hidden');
+            } else if (mode === "DAILY") {
+                containerTgl.classList.remove('hidden');
+                boxTglMulai.classList.remove('hidden');
+                boxTglSelesai.classList.add('hidden');
+                labelTglMulai.innerText = "Pilih Tanggal";
+            } else if (mode === "RANGE") {
+                containerTgl.classList.remove('hidden');
+                boxTglMulai.classList.remove('hidden');
+                boxTglSelesai.classList.remove('hidden');
+                labelTglMulai.innerText = "Dari Tanggal";
+            }
+        }
+
+        // Tarik Data Log Presensi Berdasarkan Filter
+        window.tarikDataLog = async function() {
+            showStatus("Menarik data log presensi dari Firebase...");
+            const kelasFilter = document.getElementById('filter-kelas').value;
+            const modeWaktu = document.getElementById('filter-mode-waktu').value;
+            const tglMulaiVal = document.getElementById('input-tgl-mulai').value;
+            const tglSelesaiVal = document.getElementById('input-tgl-selesai').value;
+
+            try {
+                const querySnapshot = await getDocs(collection(db, "Log_Presensi"));
+                cachedLogData = [];
+
+                querySnapshot.forEach(docSnap => {
+                    let data = docSnap.data();
+                    data.id = docSnap.id; // Simpan ID dokumen untuk keperluan hapus jika dibutuhkan
+                    cachedLogData.push(data);
+                });
+
+                // Filter data secara sisi klien agar fleksibel dan akurat
+                let filtered = cachedLogData.filter(item => {
+                    // Filter Kelas
+                    if (kelasFilter !== "ALL" && item.kelas !== kelasFilter) {
+                        return false;
+                    }
+
+                    // Konversi timestamp firebase ke objek Date
+                    let itemDate = null;
+                    if (item.timestamp && typeof item.timestamp.toDate === 'function') {
+                        itemDate = item.timestamp.toDate();
+                    } else if (item.timestamp) {
+                        itemDate = new Date(item.timestamp);
+                    }
+
+                    // Filter Waktu
+                    if (modeWaktu === "DAILY" && tglMulaiVal) {
+                        if (!itemDate) return false;
+                        let targetDate = new Date(tglMulaiVal);
+                        if (itemDate.getFullYear() !== targetDate.getFullYear() ||
+                            itemDate.getMonth() !== targetDate.getMonth() ||
+                            itemDate.getDate() !== targetDate.getDate()) {
+                            return false;
+                        }
+                    } else if (modeWaktu === "RANGE" && tglMulaiVal && tglSelesaiVal) {
+                        if (!itemDate) return false;
+                        let startDate = new Date(tglMulaiVal);
+                        startDate.setHours(0,0,0,0);
+                        let endDate = new Date(tglSelesaiVal);
+                        endDate.setHours(23,59,59,999);
+                        if (itemDate < startDate || itemDate > endDate) {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                });
+
+                // Urutkan dari yang terbaru
+                filtered.sort((a, b) => {
+                    let timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : 0;
+                    let timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : 0;
+                    return timeB - timeA;
+                });
+
+                renderTabel(filtered);
+                showStatus(`Berhasil memuat ${filtered.length} data presensi.`);
+            } catch (err) {
+                console.error(err);
+                showStatus("Gagal menarik data log dari Firebase.", true);
+            }
+        }
+
+        function renderTabel(dataList) {
+            const tbody = document.getElementById('tabel-log-body');
+            document.getElementById('jumlah-data').innerText = dataList.length;
+            tbody.innerHTML = "";
+
+            if (dataList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400">Tidak ada data presensi yang sesuai dengan filter.</td></tr>`;
                 return;
             }
 
-            let html = "";
-            dataLog.forEach((item, index) => {
-                const waktuFormatted = item.timestamp ? item.timestamp.toDate().toLocaleString('id-ID') : "-";
-                html += `<tr>
-                    <td>${index + 1}</td>
-                    <td>${waktuFormatted}</td>
-                    <td>${item.nisn}</td>
-                    <td>${item.nama}</td>
-                    <td>${item.kelas || '-'}</td>
-                    <td><span class="status-hadir">${item.status}</span></td>
-                </tr>`;
+            dataList.forEach(item => {
+                let formattedDate = "-";
+                if (item.timestamp && typeof item.timestamp.toDate === 'function') {
+                    formattedDate = item.timestamp.toDate().toLocaleString('id-ID');
+                } else if(item.timestamp) {
+                    formattedDate = new Date(item.timestamp).toLocaleString('id-ID');
+                }
+
+                let tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+                tr.innerHTML = `
+                    <td class="p-4 font-mono text-xs text-slate-600">${formattedDate}</td>
+                    <td class="p-4 font-mono font-medium">${item.nisn || '-'}</td>
+                    <td class="p-4 font-semibold text-slate-900">${item.nama || '-'}</td>
+                    <td class="p-4"><span class="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold">${item.kelas || '-'}</span></td>
+                    <td class="p-4"><span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-semibold">${item.status || 'Hadir'}</span></td>
+                    <td class="p-4 font-mono text-xs text-slate-500">${item.telegramId || '-'}</td>
+                `;
+                tbody.appendChild(tr);
             });
-            tableBody.innerHTML = html;
-
-        } catch (err) {
-            console.error(err);
-            statusInfo.innerText = "❌ Terjadi kesalahan saat menarik data dari Firebase.";
-            tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red;">Gagal memuat data. Periksa koneksi/indeks Firestore.</td></tr>`;
         }
-    }
-</script>
 
+        // Modal Penghapusan Dinamis
+        window.bukaModalHapus = function(type) {
+            currentActionType = type;
+            const modal = document.getElementById('modal-hapus');
+            const titleEl = document.getElementById('modal-title');
+            const descEl = document.getElementById('modal-desc');
+            const inputContainer = document.getElementById('modal-input-container');
+            document.getElementById('input-token-admin').value = "";
+            inputContainer.innerHTML = "";
+
+            modal.classList.remove('hidden');
+
+            if (type === 'LOG_NISN') {
+                titleEl.innerText = "Hapus Log Presensi Berdasarkan NISN";
+                descEl.innerText = "Masukkan NISN siswa yang log kehadirannya ingin dihapus seluruhnya.";
+                inputContainer.innerHTML = `<label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nomor NISN</label><input type="text" id="param-val" placeholder="Contoh: 12345" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500">`;
+            } else if (type === 'LOG_KELAS') {
+                titleEl.innerText = "Hapus Log Presensi Berdasarkan Kelas";
+                descEl.innerText = "Masukkan nama kelas yang ingin dibersihkan data log presensinya.";
+                inputContainer.innerHTML = `<label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nama Kelas</label><input type="text" id="param-val" placeholder="Contoh: XII IPA 1" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500">`;
+            } else if (type === 'LOG_TANGGAL') {
+                titleEl.innerText = "Hapus Log Presensi Berdasarkan Tanggal Tertentu";
+                descEl.innerText = "Pilih tanggal log presensi yang ingin dihapus.";
+                inputContainer.innerHTML = `<label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Pilih Tanggal</label><input type="date" id="param-val" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500">`;
+            } else if (type === 'SISWA_NISN') {
+                titleEl.innerText = "Hapus Data Siswa (per NISN)";
+                descEl.innerText = "Masukkan NISN siswa yang ingin dihapus dari database wajah & sistem.";
+                inputContainer.innerHTML = `<label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nomor NISN</label><input type="text" id="param-val" placeholder="Contoh: 12345" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500">`;
+            } else if (type === 'SISWA_KELAS') {
+                titleEl.innerText = "Hapus Data Seluruh Siswa per Kelas";
+                descEl.innerText = "Masukkan nama kelas yang seluruh datanya ingin dihapus dari database.";
+                inputContainer.innerHTML = `<label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nama Kelas</label><input type="text" id="param-val" placeholder="Contoh: X IPA 2" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500">`;
+            } else if (type === 'SISWA_SEMUA') {
+                titleEl.innerText = "⚠️ RESET TOTAL: Hapus Semua Data Siswa";
+                descEl.innerText = "TINDAKAN BERBAHAYA! Ini akan menghapus SELURUH database wajah siswa di Firebase secara permanen.";
+            }
+        }
+
+        window.tutupModalHapus = function() {
+            document.getElementById('modal-hapus').classList.add('hidden');
+            currentActionType = null;
+        }
+
+        // Eksekusi Penghapusan Setelah Token Valid
+        window.eksekusiHapusData = async function() {
+            const tokenInput = document.getElementById('input-token-admin').value;
+            if (tokenInput !== TOKEN_RAHASIA) {
+                alert("❌ Token Keamanan Admin Salah! Aksi dibatalkan.");
+                return;
+            }
+
+            let paramVal = document.getElementById('param-val') ? document.getElementById('param-val').value.trim() : "";
+            if ((currentActionType.includes('NISN') || currentActionType.includes('KELAS') || currentActionType.includes('TANGGAL')) && currentActionType !== 'SISWA_SEMUA' && !paramVal) {
+                alert("⚠️ Harap isi parameter dengan benar!");
+                return;
+            }
+
+            tutupModalHapus();
+            showStatus("Memproses penghapusan data di Firebase...");
+
+            try {
+                if (currentActionType.startsWith('LOG_')) {
+                    const snap = await getDocs(collection(db, "Log_Presensi"));
+                    let countDeleted = 0;
+
+                    for (let dSnap of snap.docs) {
+                        let data = dSnap.data();
+                        let match = false;
+
+                        if (currentActionType === 'LOG_NISN' && data.nisn && data.nisn.toString() === paramVal) {
+                            match = true;
+                        } else if (currentActionType === 'LOG_KELAS' && data.kelas && data.kelas.toLowerCase() === paramVal.toLowerCase()) {
+                            match = true;
+                        } else if (currentActionType === 'LOG_TANGGAL' && data.timestamp) {
+                            let itemDate = data.timestamp.toDate ? data.timestamp.toDate() : new Date(data.timestamp);
+                            let targetDate = new Date(paramVal);
+                            if (itemDate.toDateString() === targetDate.toDateString()) {
+                                match = true;
+                            }
+                        }
+
+                        if (match) {
+                            await deleteDoc(doc(db, "Log_Presensi", dSnap.id));
+                            countDeleted++;
+                        }
+                    }
+                    showStatus(`✅ Berhasil menghapus ${countDeleted} data log presensi.`);
+                    tarikDataLog();
+
+                } else if (currentActionType === 'SISWA_NISN' || currentActionType === 'SISWA_KELAS' || currentActionType === 'SISWA_SEMUA') {
+                    const snap = await getDocs(collection(db, "Data_Siswa"));
+                    let countDeleted = 0;
+
+                    for (let dSnap of snap.docs) {
+                        let data = dSnap.data();
+                        let match = false;
+
+                        if (currentActionType === 'SISWA_NISN' && data.nisn && data.nisn.toString() === paramVal) {
+                            match = true;
+                        } else if (currentActionType === 'SISWA_KELAS' && data.kelas && data.kelas.toLowerCase() === paramVal.toLowerCase()) {
+                            match = true;
+                        } else if (currentActionType === 'SISWA_SEMUA') {
+                            match = true;
+                        }
+
+                        if (match) {
+                            await deleteDoc(doc(db, "Data_Siswa", dSnap.id));
+                            countDeleted++;
+                        }
+                    }
+                    showStatus(`✅ Berhasil menghapus ${countDeleted} data siswa dari database.`);
+                    setTimeout(() => location.reload(), 2000);
+                }
+            } catch (err) {
+                console.error(err);
+                showStatus("❌ Terjadi kesalahan saat menghapus data di Firebase.", true);
+            }
+        }
+
+        // Fitur Export CSV
+        window.exportToCSV = function() {
+            if (cachedLogData.length === 0) {
+                alert("Tidak ada data untuk di-export!");
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,Waktu,NISN,Nama,Kelas,Status,TelegramID\r\n";
+            cachedLogData.forEach(item => {
+                let waktu = item.timestamp?.toDate ? item.timestamp.toDate().toLocaleString('id-ID') : '-';
+                let row = [waktu, item.nisn, `"${item.nama}"`, `"${item.kelas}"`, item.status, item.telegramId];
+                csvContent += row.join(",") + "\r\n";
+            });
+
+            let encodedUri = encodeURI(csvContent);
+            let link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Laporan_Presensi_SMAN1Kersana_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        window.addEventListener('DOMContentLoaded', initAdmin);
+    </script>
 </body>
 </html>

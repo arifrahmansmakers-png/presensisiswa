@@ -136,6 +136,7 @@
             height: 100%;
             object-fit: cover;
             display: block;
+            transform: scaleX(-1); /* Efek Cermin (Mirror) */
         }
 
         .btn-capture {
@@ -255,12 +256,12 @@
     import { getFirestore, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
-        apiKey: "AIzaSyBgwrSnaE7KottacFI0DCUdGP1pQuJjBJw",
-        authDomain: "presensi-siswa-2625a.firebaseapp.com",
-        projectId: "presensi-siswa-2625a",
-        storageBucket: "presensi-siswa-2625a.firebasestorage.app",
-        messagingSenderId: "109107178409",
-        appId: "1:109107178409:web:6cb26aadb7e6dbeb8ef2b8"
+          apiKey: "AIzaSyBgwrSnaE7KottacFI0DCUdGP1pQuJjBJw",
+          authDomain: "presensi-siswa-2625a.firebaseapp.com",
+          projectId: "presensi-siswa-2625a",
+          storageBucket: "presensi-siswa-2625a.firebasestorage.app",
+          messagingSenderId: "109107178409",
+          appId: "1:109107178409:web:6cb26aadb7e6dbeb8ef2b8"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -291,7 +292,13 @@
         }
     }
 
-    // Fungsi Pengambilan Wajah 5 Sudut Berbeda
+    // Helper untuk membersihkan descriptor agar aman dari error nested array Firestore
+    function cleanDescriptor(detectionResult) {
+        const rawArray = Array.from(detectionResult.descriptor);
+        return rawArray.map(num => Number(num));
+    }
+
+    // Fungsi Pengambilan Wajah 5 Sudut Berbeda (Jeda Diperpanjang 2.5 Detik)
     window.prosesPendaftaran5Sudut = async function() {
         const nisn = document.getElementById('nisn').value.trim();
         const nama = document.getElementById('nama').value.trim();
@@ -314,46 +321,47 @@
             }
 
             let multiDescriptors = [];
+            const delayTime = 2500; // Jeda waktu 2.5 detik per sudut agar lebih santai
 
             // 1. Depan
             camStatusEl.innerText = "📸 [1/5] Menghadap LURUS ke depan... (Tahan sebentar)";
-            await sleep(1500);
+            await sleep(delayTime);
             const det1 = await lib.detectSingleFace(video, new lib.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptor();
             if (!det1) throw new Error("Wajah tidak terdeteksi pada posisi Lurus Depan.");
-            multiDescriptors.push(Array.from(det1.descriptor));
+            multiDescriptors.push(cleanDescriptor(det1));
 
-            // 2. Kiri
-            camStatusEl.innerText = "📸 [2/5] Sedikit menoleh ke KIRI...";
-            await sleep(1500);
+            // 2. Kanan (Disesuaikan dengan cermin / mirror)
+            camStatusEl.innerText = "📸 [2/5] Sedikit menoleh ke KANAN...";
+            await sleep(delayTime);
             const det2 = await lib.detectSingleFace(video, new lib.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptor();
-            if (!det2) throw new Error("Wajah tidak terdeteksi pada posisi Menoleh Kiri.");
-            multiDescriptors.push(Array.from(det2.descriptor));
+            if (!det2) throw new Error("Wajah tidak terdeteksi pada posisi Menoleh Kanan.");
+            multiDescriptors.push(cleanDescriptor(det2));
 
-            // 3. Kanan
-            camStatusEl.innerText = "📸 [3/5] Sedikit menoleh ke KANAN...";
-            await sleep(1500);
+            // 3. Kiri
+            camStatusEl.innerText = "📸 [3/5] Sedikit menoleh ke KIRI...";
+            await sleep(delayTime);
             const det3 = await lib.detectSingleFace(video, new lib.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptor();
-            if (!det3) throw new Error("Wajah tidak terdeteksi pada posisi Menoleh Kanan.");
-            multiDescriptors.push(Array.from(det3.descriptor));
+            if (!det3) throw new Error("Wajah tidak terdeteksi pada posisi Menoleh Kiri.");
+            multiDescriptors.push(cleanDescriptor(det3));
 
             // 4. Atas
             camStatusEl.innerText = "📸 [4/5] Sedikit mendongak ke ATAS...";
-            await sleep(1500);
+            await sleep(delayTime);
             const det4 = await lib.detectSingleFace(video, new lib.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptor();
             if (!det4) throw new Error("Wajah tidak terdeteksi pada posisi Mendongak Atas.");
-            multiDescriptors.push(Array.from(det4.descriptor));
+            multiDescriptors.push(cleanDescriptor(det4));
 
             // 5. Bawah
             camStatusEl.innerText = "📸 [5/5] Sedikit menunduk ke BAWAH...";
-            await sleep(1500);
+            await sleep(delayTime);
             const det5 = await lib.detectSingleFace(video, new lib.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptor();
             if (!det5) throw new Error("Wajah tidak terdeteksi pada posisi Menunduk Bawah.");
-            multiDescriptors.push(Array.from(det5.descriptor));
+            multiDescriptors.push(cleanDescriptor(det5));
 
             camStatusEl.innerText = "⏳ Menyimpan data ke Firebase...";
             dbStatusEl.innerText = "Mengunggah data multi-sudut...";
 
-            // Simpan ke Firestore (flat array of array untuk menghindari nested array error)
+            // Simpan ke Firestore
             await addDoc(collection(db, "Data_Siswa"), {
                 nisn: nisn,
                 nama: nama,

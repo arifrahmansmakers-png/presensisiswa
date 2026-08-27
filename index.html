@@ -240,7 +240,9 @@
                 return;
             }
 
-            let labeledDescriptors = dataSiswa.map(item => {
+            let labeledDescriptors = [];
+
+            dataSiswa.forEach(item => {
                 const nisnStr = item.nisn ? item.nisn.toString() : "";
                 registeredStudents[nisnStr] = {
                     nama: item.nama || nisnStr,
@@ -251,12 +253,26 @@
                 let descriptorsObj = item.descriptors || {};
                 let arrayOfArrays = Object.values(descriptorsObj);
                 
-                let floatArrays = arrayOfArrays.map(descArray => new Float32Array(descArray));
-                return new lib.LabeledFaceDescriptors(nisnStr, floatArrays);
+                let floatArrays = [];
+                arrayOfArrays.forEach(descArray => {
+                    // Validasi panjang array harus tepat 128 untuk menghindari error dimensi vektor
+                    if (Array.isArray(descArray) && descArray.length === 128) {
+                        floatArrays.push(new Float32Array(descArray));
+                    }
+                });
+
+                if (floatArrays.length > 0) {
+                    labeledDescriptors.push(new lib.LabeledFaceDescriptors(nisnStr, floatArrays));
+                }
             });
 
+            if (labeledDescriptors.length === 0) {
+                setAlertStatus("⚠️ Data descriptor di Firebase tidak valid atau kosong!", true);
+                return;
+            }
+
             faceMatcher = new lib.FaceMatcher(labeledDescriptors, 0.55);
-            setAlertStatus(`✅ Sistem Standby (${dataSiswa.length} siswa dimuat). Silakan lewat di depan kamera.`, false);
+            setAlertStatus(`✅ Sistem Standby (${labeledDescriptors.length} siswa dimuat). Silakan lewat di depan kamera.`, false);
 
         } catch (err) {
             console.error("Detail Error Model:", err);
@@ -296,13 +312,13 @@
                     const box = detection.detection.box;
 
                     let labelText = "Tidak Dikenali";
-                    let boxColor = "#ef4444"; // Merah (Tidak dikirim ke Firebase)
+                    let boxColor = "#ef4444"; // Merah (Tidak Dikenali / Aman tidak masuk Firebase)
 
                     if (match.label !== "unknown") {
                         const nisn = match.label;
                         const siswaInfo = registeredStudents[nisn] || { nama: nisn, kelas: "-", telegramId: "" };
                         labelText = `${siswaInfo.nama} (${siswaInfo.kelas})`;
-                        boxColor = "#22c55e"; // Hijau (Tervalidasi & Dikirim ke Firebase)
+                        boxColor = "#22c55e"; // Hijau (Terdaftar & Masuk Log Presensi)
 
                         const now = Date.now();
                         if (!recentPresensi[nisn] || (now - recentPresensi[nisn] > 10000)) {
@@ -311,7 +327,7 @@
                         }
                     }
 
-                    // Render kotak pembatas dan label nama di atas wajah
+                    // Render kotak pembatas dan label nama di atas wajah secara real-time
                     const drawBox = new lib.draw.DrawBox(box, { 
                         label: labelText, 
                         boxColor: boxColor,

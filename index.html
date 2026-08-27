@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Presensi Multi-Wajah SMAN 1 Kersana</title>
-    <!-- CDN jsDelivr stabil untuk @vladmandic/face-api -->
     <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); min-height: 100vh; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
@@ -15,7 +14,7 @@
         video { display: block; width: 100%; height: 100%; object-fit: cover; }
         canvas { position: absolute; top: 0; left: 0; }
         #status { font-size: 15px; font-weight: bold; margin-top: 20px; padding: 12px; border-radius: 8px; background: #e8f5e9; color: #2e7d32; transition: all 0.3s; }
-        .link-nav { margin-top: 15px; font-size: 14px; }
+        .link-nav { margin-top: 15px; font-size: 14px; display: flex; justify-content: center; gap: 20px; }
         .link-nav a { color: #11998e; text-decoration: none; font-weight: bold; }
     </style>
 </head>
@@ -32,19 +31,33 @@
     <div id="status">Menyalakan kamera perangkat...</div>
     
     <div class="link-nav">
-        <a href="register.html">➡️ Buka Halaman Pendaftaran Siswa</a>
+        <a href="register.html">➡️ Pendaftaran Siswa</a>
+        <a href="admin.html">🔐 Dashboard Admin</a>
     </div>
 </div>
 
-<script>
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxD9vgoyicEcsCzLoc4YAsIWjIrQDdDG4mord9cPweixZ4LOEhrrwBB9yDMXUTWjmzWHw/exec";
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "API_KEY_ANDA",
+        authDomain: "PROJECT_ID.firebaseapp.com",
+        projectId: "PROJECT_ID_ANDA",
+        storageBucket: "PROJECT_ID.appspot.com",
+        messagingSenderId: "SENDER_ID",
+        appId: "APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
     const video = document.getElementById('video');
     const videoBox = document.getElementById('videoBox');
     let canvas = null;
     let faceMatcher = null;
-    let registeredStudents = {}; // Untuk simpan pemetaan NISN -> Nama
-    let recentPresensi = {}; // Mencegah spam presensi berturut-turut untuk siswa yang sama
+    let registeredStudents = {}; 
+    let recentPresensi = {}; 
 
     function setAlertStatus(text, isError) {
         const statusEl = document.getElementById('status');
@@ -60,7 +73,7 @@
     }
 
     async function initSystem() {
-        let lib = window.faceapi || faceapi;
+        let lib = window.faceapi;
         if (typeof lib === 'undefined') {
             setAlertStatus("❌ Library faceapi belum terbaca!", true);
             return;
@@ -83,44 +96,43 @@
             await lib.loadFaceLandmarkModel(MODEL_URL);
             await lib.loadFaceRecognitionModel(MODEL_URL);
 
-            setAlertStatus("Menarik database wajah dari Spreadsheet...");
-            const res = await fetch(WEB_APP_URL, {
-                method: "POST",
-                body: JSON.stringify({ action: "getData" })
+            setAlertStatus("Menarik database wajah dari Firebase...");
+            
+            const querySnapshot = await getDocs(collection(db, "Data_Siswa"));
+            const dataSiswa = [];
+            querySnapshot.forEach((doc) => {
+                dataSiswa.push(doc.data());
             });
-            const responseData = await res.json();
-
-            // Menyesuaikan struktur data JSON (baik berupa array langsung maupun dibungkus objek)
-            const dataSiswa = Array.isArray(responseData) ? responseData : (responseData.data || []);
 
             if (dataSiswa.length === 0) {
-                setAlertStatus("⚠️ Belum ada data siswa terdaftar di Spreadsheet!", true);
+                setAlertStatus("⚠️ Belum ada data siswa terdaftar di Firebase!", true);
                 return;
             }
 
             let labeledDescriptors = dataSiswa.map(item => {
                 const nisnStr = item.nisn ? item.nisn.toString() : "";
-                registeredStudents[nisnStr] = item.nama || nisnStr;
+                registeredStudents[nisnStr] = {
+                    nama: item.nama || nisnStr,
+                    kelas: item.kelas || "-",
+                    telegramId: item.telegramId || ""
+                };
                 
-                // Mengubah format descriptors array kembali menjadi Float32Array untuk face-api
                 let floatArrays = (item.descriptors || []).map(desc => new Float32Array(desc));
                 return new lib.LabeledFaceDescriptors(nisnStr, floatArrays);
             });
 
-            // Threshold 0.55 disesuaikan agar cocok untuk jarak menengah/tinggi
             faceMatcher = new lib.FaceMatcher(labeledDescriptors, 0.55);
-            setAlertStatus(`✅ Sistem Multi-Wajah Standby (${dataSiswa.length} siswa dimuat). Silakan lewat di depan kamera.`, false);
+            setAlertStatus(`✅ Sistem Standby (${dataSiswa.length} siswa dimuat). Silakan lewat di depan kamera.`, false);
 
         } catch (err) {
             console.error("Detail Error Model:", err);
-            setAlertStatus("⚠️ Gagal memuat model atau mengambil data dari Spreadsheet.", true);
+            setAlertStatus("⚠️ Gagal memuat model atau mengambil data dari Firebase.", true);
         }
     }
 
     video.addEventListener('play', () => {
-        let lib = window.faceapi || faceapi;
+        let lib = window.faceapi;
 
-        // Buat canvas overlay di atas elemen video
         canvas = lib.createCanvasFromMedia(video);
         videoBox.appendChild(canvas);
 
@@ -130,14 +142,12 @@
         setInterval(async () => {
             if (!faceMatcher || typeof lib === 'undefined') return;
 
-            // Memindai SEMUA WAJAH dalam satu frame (inputSize 512 agar lebih peka terhadap wajah kecil/jauh)
             const detections = await lib.detectAllFaces(video, new lib.SsdMobilenetv1Options({ inputSize: 512, minConfidence: 0.5 }))
                                         .withFaceLandmarks()
                                         .withFaceDescriptors();
 
             const resizedDetections = lib.resizeResults(detections, displaySize);
             
-            // Bersihkan kanvas sebelum menggambar frame baru
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -147,23 +157,21 @@
                     const box = detection.detection.box;
 
                     let labelText = "Tidak Dikenali";
-                    let boxColor = "#ff3333"; // Merah untuk unknown
+                    let boxColor = "#ff3333";
 
                     if (match.label !== "unknown") {
                         const nisn = match.label;
-                        const namaSiswa = registeredStudents[nisn] || nisn;
-                        labelText = namaSiswa;
-                        boxColor = "#00ff66"; // Hijau jika cocok
+                        const siswaInfo = registeredStudents[nisn] || { nama: nisn, kelas: "-", telegramId: "" };
+                        labelText = `${siswaInfo.nama} (${siswaInfo.kelas})`;
+                        boxColor = "#00ff66";
 
-                        // Proses presensi jika belum diproses dalam 10 detik terakhir
                         const now = Date.now();
                         if (!recentPresensi[nisn] || (now - recentPresensi[nisn] > 10000)) {
                             recentPresensi[nisn] = now;
-                            kirimPresensi(nisn, namaSiswa);
+                            kirimPresensiFirebase(nisn, siswaInfo.nama, siswaInfo.kelas, siswaInfo.telegramId);
                         }
                     }
 
-                    // Gambar kotak penanda di wajah
                     const drawBox = new lib.draw.DrawBox(box, { 
                         label: labelText, 
                         boxColor: boxColor,
@@ -172,26 +180,39 @@
                     drawBox.draw(canvas);
                 });
             }
-        }, 500); // Dipindai setiap 0.5 detik (lebih responsif untuk objek bergerak)
+        }, 500);
     });
 
-    async function kirimPresensi(nisn, namaSiswa) {
+    async function kirimPresensiFirebase(nisn, namaSiswa, kelasSiswa, telegramId) {
         setAlertStatus(`🔍 Memproses presensi: ${namaSiswa}...`, false);
         try {
-            let response = await fetch(WEB_APP_URL, {
-                method: "POST",
-                body: JSON.stringify({ action: "presensi", nisn: nisn })
+            await addDoc(collection(db, "Log_Presensi"), {
+                nisn: nisn,
+                nama: namaSiswa,
+                kelas: kelasSiswa,
+                telegramId: telegramId,
+                status: "Hadir",
+                timestamp: new Date()
             });
-            let result = await response.json();
 
-            if (result.status === "success") {
-                setAlertStatus(`✅ Hadir: ${result.nama} (Notifikasi Telegram Terkirim)`, false);
-            } else {
-                setAlertStatus(`⚠️ ${result.message}`, true);
-            }
+            const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwOySQWGGx-avtP9xDRbLnbYPeMbDrONwGRkVRPuZlLkANgQyB6ayxXlyXjibyAgAg6Aw/exec";
+            
+            fetch(WEB_APP_URL, {
+                method: "POST",
+                mode: "no-cors",
+                body: JSON.stringify({ 
+                    action: "notifTelegram", 
+                    telegramId: telegramId,
+                    nisn: nisn, 
+                    nama: namaSiswa, 
+                    kelas: kelasSiswa 
+                })
+            }).catch(err => console.error("Gagal kirim notif Telegram:", err));
+
+            setAlertStatus(`✅ Hadir: ${namaSiswa} (${kelasSiswa}) - Notifikasi Privat Dikirim`, false);
         } catch (e) {
             console.error(e);
-            setAlertStatus("❌ Gagal terhubung ke server Apps Script.", true);
+            setAlertStatus("❌ Gagal mencatat presensi ke Firebase.", true);
         }
     }
 

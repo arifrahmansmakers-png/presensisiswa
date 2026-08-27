@@ -269,10 +269,14 @@
         const displaySize = { width: video.clientWidth || 640, height: video.clientHeight || 480 };
         lib.matchDimensions(canvas, displaySize);
 
-        setInterval(async () => {
+       setInterval(async () => {
             if (!faceMatcher || typeof lib === 'undefined') return;
 
-            const detections = await lib.detectAllFaces(video, new lib.SsdMobilenetv1Options({ inputSize: 512, minConfidence: 0.5 }))
+            // GUNAKAN INPUTSIZE KECIL (misal 320 atau 416) agar deteksi jauh lebih cepat & ringan untuk banyak wajah
+            const options = new lib.SsdMobilenetv1Options({ inputSize: 416, minConfidence: 0.5 });
+
+            // Mendeteksi SEMUA wajah sekaligus di layar
+            const detections = await lib.detectAllFaces(video, options)
                                         .withFaceLandmarks()
                                         .withFaceDescriptors();
 
@@ -283,35 +287,37 @@
 
             if (resizedDetections.length > 0) {
                 resizedDetections.forEach(detection => {
+                    // Cocokan wajah dengan database FaceMatcher
                     const match = faceMatcher.findBestMatch(detection.descriptor);
                     const box = detection.detection.box;
 
                     let labelText = "Tidak Dikenali";
-                    let boxColor = "#ef4444";
+                    let boxColor = "#ef4444"; // Merah untuk yang belum terdaftar
 
                     if (match.label !== "unknown") {
                         const nisn = match.label;
                         const siswaInfo = registeredStudents[nisn] || { nama: nisn, kelas: "-", telegramId: "" };
                         labelText = `${siswaInfo.nama} (${siswaInfo.kelas})`;
-                        boxColor = "#22c55e";
+                        boxColor = "#22c55e"; // Hijau untuk siswa terdaftar
 
                         const now = Date.now();
+                        // Jeda 10 detik agar presensi tidak berulang-ulang terus dalam waktu dekat
                         if (!recentPresensi[nisn] || (now - recentPresensi[nisn] > 10000)) {
                             recentPresensi[nisn] = now;
                             kirimPresensiFirebase(nisn, siswaInfo.nama, siswaInfo.kelas, siswaInfo.telegramId);
                         }
                     }
 
+                    // Render Kotak dan Nama di atas wajah secara real-time
                     const drawBox = new lib.draw.DrawBox(box, { 
                         label: labelText, 
                         boxColor: boxColor,
-                        lineWidth: 2
+                        lineWidth: 3
                     });
                     drawBox.draw(canvas);
                 });
             }
-        }, 500);
-    });
+        }, 300); // Dipercepat intervalnya menjadi 300ms agar lebih responsif
 
     async function kirimPresensiFirebase(nisn, namaSiswa, kelasSiswa, telegramId) {
         setAlertStatus(`🔍 Memproses presensi: ${namaSiswa}...`, false);

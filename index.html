@@ -49,7 +49,6 @@
             font-weight: 500;
         }
 
-        /* Card Kotak Kamera yang Elegan & Timbul */
         .video-box-card {
             background: #ffffff;
             padding: 15px;
@@ -79,6 +78,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
+            transform: scaleX(-1); /* Efek Cermin (Mirror) */
         }
 
         canvas {
@@ -100,7 +100,6 @@
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
         }
 
-        /* Navigasi / Tombol Timbul Tema Navy & Oranye */
         .link-nav {
             display: flex;
             justify-content: center;
@@ -147,7 +146,6 @@
     <h2>🏫 Presensi Kehadiran Siswa</h2>
     <div class="subtitle">Sistem Deteksi Banyak Wajah Otomatis — SMAN 1 Kersana</div>
     
-    <!-- Card Kotak Kamera -->
     <div class="video-box-card">
         <div class="video-box" id="videoBox">
             <video id="video" autoplay muted playsinline></video>
@@ -156,7 +154,6 @@
 
     <div id="status">Menyalakan kamera perangkat...</div>
     
-    <!-- Tombol Navigasi Timbul -->
     <div class="link-nav">
         <a href="register.html" class="btn-accent"><span>➕</span> Pendaftaran Siswa</a>
         <a href="admin.html"><span>🔐</span> Dashboard Admin</a>
@@ -243,10 +240,14 @@
                 registeredStudents[nisnStr] = {
                     nama: item.nama || nisnStr,
                     kelas: item.kelas || "-",
-                    telegramId: item.telegramId || ""
+                    telegramId: item.telegramId || item.chatId || "" // Mendukung telegramId atau chatId
                 };
                 
-                let floatArrays = (item.descriptors || []).map(desc => new Float32Array(desc));
+                // Menangani data descriptors yang berupa Map (Objek) dari Firestore
+                let descriptorsObj = item.descriptors || {};
+                let arrayOfArrays = Object.values(descriptorsObj); // Mengubah values map menjadi array of arrays
+                
+                let floatArrays = arrayOfArrays.map(descArray => new Float32Array(descArray));
                 return new lib.LabeledFaceDescriptors(nisnStr, floatArrays);
             });
 

@@ -64,7 +64,7 @@
         }
 
         .video-box {
-            position: relative;
+            position: relative; /* Wajib relative agar canvas absolute menempel pas */
             display: block;
             border-radius: 14px;
             overflow: hidden;
@@ -85,6 +85,9 @@
             position: absolute;
             top: 0;
             left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
         }
 
         #status {
@@ -146,6 +149,7 @@
     <h2>🏫 Presensi Kehadiran Siswa</h2>
     <div class="subtitle">Sistem Deteksi Banyak Wajah Otomatis — SMAN 1 Kersana</div>
     
+    <!-- Card Kotak Kamera -->
     <div class="video-box-card">
         <div class="video-box" id="videoBox">
             <video id="video" autoplay muted playsinline></video>
@@ -154,6 +158,7 @@
 
     <div id="status">Menyalakan kamera perangkat...</div>
     
+    <!-- Tombol Navigasi -->
     <div class="link-nav">
         <a href="register.html" class="btn-accent"><span>➕</span> Pendaftaran Siswa</a>
         <a href="admin.html"><span>🔐</span> Dashboard Admin</a>
@@ -240,12 +245,11 @@
                 registeredStudents[nisnStr] = {
                     nama: item.nama || nisnStr,
                     kelas: item.kelas || "-",
-                    telegramId: item.telegramId || item.chatId || "" // Mendukung telegramId atau chatId
+                    telegramId: item.telegramId || item.chatId || ""
                 };
                 
-                // Menangani data descriptors yang berupa Map (Objek) dari Firestore
                 let descriptorsObj = item.descriptors || {};
-                let arrayOfArrays = Object.values(descriptorsObj); // Mengubah values map menjadi array of arrays
+                let arrayOfArrays = Object.values(descriptorsObj);
                 
                 let floatArrays = arrayOfArrays.map(descArray => new Float32Array(descArray));
                 return new lib.LabeledFaceDescriptors(nisnStr, floatArrays);
@@ -263,19 +267,20 @@
     video.addEventListener('play', () => {
         let lib = window.faceapi;
 
-        canvas = lib.createCanvasFromMedia(video);
-        videoBox.appendChild(canvas);
+        // Buat canvas secara dinamis untuk menimpa video secara akurat
+        if (!canvas) {
+            canvas = lib.createCanvasFromMedia(video);
+            videoBox.appendChild(canvas);
+        }
 
         const displaySize = { width: video.clientWidth || 640, height: video.clientHeight || 480 };
         lib.matchDimensions(canvas, displaySize);
 
-       setInterval(async () => {
-            if (!faceMatcher || typeof lib === 'undefined') return;
+        setInterval(async () => {
+            if (!faceMatcher || typeof lib === 'undefined' || video.paused || video.ended) return;
+            if (video.videoWidth === 0 || video.videoHeight === 0) return;
 
-            // GUNAKAN INPUTSIZE KECIL (misal 320 atau 416) agar deteksi jauh lebih cepat & ringan untuk banyak wajah
             const options = new lib.SsdMobilenetv1Options({ inputSize: 416, minConfidence: 0.5 });
-
-            // Mendeteksi SEMUA wajah sekaligus di layar
             const detections = await lib.detectAllFaces(video, options)
                                         .withFaceLandmarks()
                                         .withFaceDescriptors();
@@ -287,28 +292,26 @@
 
             if (resizedDetections.length > 0) {
                 resizedDetections.forEach(detection => {
-                    // Cocokan wajah dengan database FaceMatcher
                     const match = faceMatcher.findBestMatch(detection.descriptor);
                     const box = detection.detection.box;
 
                     let labelText = "Tidak Dikenali";
-                    let boxColor = "#ef4444"; // Merah untuk yang belum terdaftar
+                    let boxColor = "#ef4444"; // Merah (Tidak dikirim ke Firebase)
 
                     if (match.label !== "unknown") {
                         const nisn = match.label;
                         const siswaInfo = registeredStudents[nisn] || { nama: nisn, kelas: "-", telegramId: "" };
                         labelText = `${siswaInfo.nama} (${siswaInfo.kelas})`;
-                        boxColor = "#22c55e"; // Hijau untuk siswa terdaftar
+                        boxColor = "#22c55e"; // Hijau (Tervalidasi & Dikirim ke Firebase)
 
                         const now = Date.now();
-                        // Jeda 10 detik agar presensi tidak berulang-ulang terus dalam waktu dekat
                         if (!recentPresensi[nisn] || (now - recentPresensi[nisn] > 10000)) {
                             recentPresensi[nisn] = now;
                             kirimPresensiFirebase(nisn, siswaInfo.nama, siswaInfo.kelas, siswaInfo.telegramId);
                         }
                     }
 
-                    // Render Kotak dan Nama di atas wajah secara real-time
+                    // Render kotak pembatas dan label nama di atas wajah
                     const drawBox = new lib.draw.DrawBox(box, { 
                         label: labelText, 
                         boxColor: boxColor,
@@ -317,7 +320,8 @@
                     drawBox.draw(canvas);
                 });
             }
-        }, 300); // Dipercepat intervalnya menjadi 300ms agar lebih responsif
+        }, 300);
+    });
 
     async function kirimPresensiFirebase(nisn, namaSiswa, kelasSiswa, telegramId) {
         setAlertStatus(`🔍 Memproses presensi: ${namaSiswa}...`, false);
